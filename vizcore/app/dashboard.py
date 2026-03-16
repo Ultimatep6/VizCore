@@ -5,7 +5,7 @@ from ..bus.data_bus import DataBus
 from ..renderer.renderer import Renderer
 from ..layout.grid_layout import GridLayout
 from ..layout.rect import Rect
-
+import pyglet
 
 class Dashboard:
     """
@@ -24,7 +24,12 @@ class Dashboard:
         - Control dashboard lifecycle
     """
 
-    def __init__(self, width=800, height=600, title="VizCore Dashboard", rows=2, cols=2):
+    def __init__(self, width=800, height=600, title="VizCore Dashboard", rows=2, cols=2, fullscreen=False):
+        if fullscreen:
+            display = pyglet.display.get_display()
+            screen = display.get_default_screen()
+            width, height = screen.width, screen.height
+
         self.window = ApplicationWindow(width=width, height=height, title=title)
         self.data_bus = DataBus()
         # Create ModernGL context from window (assume window provides a ctx property or similar)
@@ -41,6 +46,7 @@ class Dashboard:
         # Give the widget its rect immediately
         x, y, w, h = self.layout_engine.compute_rect(row, col)
         widget.resize(Rect(x, y, w, h))
+        widget.bind_renderer(self.renderer)
 
     def run(self, signal_source_update=None):
         mainloop = MainLoop(

@@ -5,17 +5,22 @@ from vizcore.app.dashboard import Dashboard
 from vizcore.layout.rect import Rect
 from vizcore.widgets.plots.line_plot import LinePlot
 
-dashboard = Dashboard(width=1200, height=300, title="Line Plot Test", rows=1, cols=2)
+dashboard = Dashboard(title="Line Plot Test", rows=2, cols=2, fullscreen=True)
 
-plot1 = LinePlot(Rect(0, 0, 600, 300), channels=1, buffer_size=256,margin=50)
-plot2 = LinePlot(Rect(600, 0, 600, 300), channels=1, buffer_size=256,margin=50)
+
+plot1 = LinePlot(channels=1, buffer_size=256, margin=50)
+plot2 = LinePlot(channels=1, buffer_size=256, margin=50)
+plot3 = LinePlot(channels=1, buffer_size=256, margin=50)
 dashboard.add_widget(plot1, row=0, col=0, signal="ch1")
 dashboard.add_widget(plot2, row=0, col=1, signal="ch2")
+dashboard.add_widget(plot3, row=1, col=0, signal="ch3")
+
 
 t0 = time.time()
 def sim_update():
     t = time.time() - t0
     dashboard.data_bus.push("ch1", float(np.sin(2 * np.pi * t)))
     dashboard.data_bus.push("ch2", float(np.cos(2 * np.pi * t)))
+    dashboard.data_bus.push("ch3", float(np.random.normal(0, 1)))
 
 dashboard.run(signal_source_update=sim_update)

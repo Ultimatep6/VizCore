@@ -40,6 +40,20 @@ class Renderer:
             w, h = self.ctx.viewport[2:]
             self.ctx.viewport = (0, 0, w, h)
 
+    def draw_line_plot_vbo(self, vbo, n_points, rect=None, color=(0,200,255,255), margin=10):
+        prog = self.shader_manager.get_shader('line_plot')
+        if prog is None:
+            return
+        vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
+        prog['u_color'].value = tuple(c / 255.0 for c in color)
+        if rect is not None:
+            self.ctx.viewport = (int(rect.x + margin), int(rect.y + margin),
+                                int(rect.width - 2*margin), int(rect.height - 2*margin))
+        vao.render(moderngl.LINE_STRIP, vertices=n_points)
+        if rect is not None:
+            self.ctx.viewport = (0, 0, *self.ctx.viewport[2:])
+
+
     def begin_frame(self):
         self.ctx.clear(0.1, 0.1, 0.1)
 

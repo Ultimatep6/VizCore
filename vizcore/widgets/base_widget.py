@@ -12,7 +12,7 @@ class BaseWidget:
         - draw(renderer)
         - resize(rect)
     """
-    def __init__(self, rect):
+    def __init__(self, rect=None):
         self.rect = rect
         self.state = {}
 
@@ -31,3 +31,6 @@ class BaseWidget:
         Subclasses should override this if they support signal binding.
         """
         pass
+
+    def bind_renderer(self, renderer):
+        pass  # override in widgets that need GPU buffer pre-allocation

@@ -3,8 +3,11 @@ import moderngl
 from pyglet.window import key
 
 class ApplicationWindow(pyglet.window.Window):
-    def __init__(self, width=800, height=600, title="VizCore", renderer=None):
-        super().__init__(width=width, height=height, caption=title, resizable=True)
+    def __init__(self, width=800, height=600, title="VizCore", 
+                 fullscreen=False, renderer=None):
+        super().__init__(width=width, height=height, caption=title,
+                         resizable=True, fullscreen=fullscreen)
+
         self.ctx = moderngl.create_context()
         self.layout_engine = None  # Placeholder
         self.widgets = []

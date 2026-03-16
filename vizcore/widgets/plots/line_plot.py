@@ -14,13 +14,21 @@ class LinePlot(BaseWidget):
         - Multiple channels
         - Automatic scrolling
     """
-    def __init__(self, rect, channels=1, buffer_size=512, margin=10):
-        super().__init__(rect)
+    def __init__(self, channels=1, buffer_size=512, margin=10):
+        super().__init__()
         self.channels = channels
         self.buffer_size = buffer_size
+        self.margin = margin
         self.buffers = [RingBuffer(buffer_size) for _ in range(channels)]
         self.values = [np.zeros(buffer_size, dtype='f4') for _ in range(channels)]
-        self.margin = margin
+        self._vbos = {}  # persistent GPU buffers, keyed by channel
+
+    def bind_renderer(self, renderer):
+        """Call once after widget is created to pre-allocate GPU buffers."""
+        for i in range(self.channels):
+            points = np.zeros(self.buffer_size * 2, dtype='f4')  # x,y interleaved
+            self._vbos[i] = renderer.ctx.buffer(points.tobytes())
+
 
     def update(self, data=None):
         # Pull latest values from the data bus for each signal
@@ -40,12 +48,23 @@ class LinePlot(BaseWidget):
             v_min, v_max = np.min(values), np.max(values)
             y = 2.0 * (values - v_min) / (v_max - v_min + 1e-6) - 1.0
             points = np.column_stack((x, y)).flatten().astype('f4')
-            renderer.draw_line_plot(
-                points,
-                rect=self.rect,
-                color=(0, 150 + i*50, 255 - i*50, 255),
-                margin = self.margin
-            )
+
+            if i in self._vbos:
+                buf = self._vbos[i]
+                buf.write(points.tobytes())
+
+                renderer.draw_line_plot_vbo(
+                    buf, len(points) // 2,
+                    rect=self.rect, color = (0, 150 + i*50, 255 - i*50, 255), margin=self.margin
+                )
+            else:
+                renderer.draw_line_plot(
+                    points,
+                    rect=self.rect,
+                    color=(0, 150 + i*50, 255 - i*50, 255),
+                    margin = self.margin
+                )
+            
 
     def resize(self, rect):
         super().resize(rect)
