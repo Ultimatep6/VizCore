@@ -208,7 +208,7 @@ cython_debug/
 .pypirc
 
 # pyc
-.pyc
+*.pyc
 
 # Marimo
 marimo/_static/
