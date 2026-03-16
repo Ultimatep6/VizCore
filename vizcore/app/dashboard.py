@@ -4,6 +4,8 @@ from .mainloop import MainLoop
 from ..bus.data_bus import DataBus
 from ..renderer.renderer import Renderer
 from ..layout.grid_layout import GridLayout
+from ..layout.rect import Rect
+
 
 class Dashboard:
     """
@@ -36,6 +38,9 @@ class Dashboard:
         if signal:
             widget.bind_signal(self.data_bus, signal)
         self.layout_engine.assign_widget(widget, row, col)
+        # Give the widget its rect immediately
+        x, y, w, h = self.layout_engine.compute_rect(row, col)
+        widget.resize(Rect(x, y, w, h))
 
     def run(self, signal_source_update=None):
         mainloop = MainLoop(
