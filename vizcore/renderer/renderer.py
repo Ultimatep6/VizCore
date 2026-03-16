@@ -23,9 +23,20 @@ class Renderer:
         mesh.render(self.ctx)
 
     def draw_line_plot(self, points, color=(0, 200, 255, 255)):
-        # Submit draw calls for line plot objects
-        # This is a stub; actual implementation should render the line plot using points and color.
-        pass
+        # points: flat float32 array [x0,y0, x1,y1, ...]
+        # Requires a compiled line shader — see shader_manager
+        if len(points) < 4:
+            return
+        prog = self.shader_manager.get_shader('line_plot')
+        if prog is None:
+            return
+        vbo = self.ctx.buffer(points.astype('f4').tobytes())
+        vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
+        norm_color = tuple(c / 255.0 for c in color)
+        prog['u_color'].value = norm_color
+        vao.render(moderngl.LINE_STRIP)
+        vbo.release()
+
 
     def draw_ui_primitive(self, primitive):
         # Submit draw calls for UI primitives

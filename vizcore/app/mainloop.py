@@ -15,11 +15,15 @@ class MainLoop:
         2. Update widgets
         3. Execute rendering pass
     """
-    def __init__(self, window, widgets, target_fps=60, signal_source_update=None):
+    def __init__(self, window, widgets, target_fps=60,
+                 signal_source_update=None, renderer=None, layout_engine=None):
         self.window = window
         self.widgets = widgets
         self.target_fps = target_fps
         self.signal_source_update = signal_source_update
+        self.renderer = renderer  # add this
+        self.layout_engine = layout_engine  # add this
+    # rest unchanged
 
     def update(self, dt):
         # Update signal source first if provided

@@ -37,8 +37,9 @@ class LinePlot(BaseWidget):
             if len(values) < 2:
                 continue
             # Compute line coordinates
-            x = np.linspace(self.rect.x, self.rect.x + self.rect.width, len(values))
-            y = self.rect.y + self.rect.height * (values - np.min(values)) / (np.ptp(values) + 1e-6)
+            x = np.linspace(-1.0, 1.0, len(values))  # NDC x
+            v_min, v_max = np.min(values), np.max(values)
+            y = 2.0 * (values - v_min) / (v_max - v_min + 1e-6) - 1.0  # NDC y
             points = np.column_stack((x, y)).flatten().astype('f4')
             renderer.draw_line_plot(points, color=(0, 150 + i*50, 255 - i*50, 255))
 

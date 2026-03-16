@@ -37,8 +37,11 @@ class Dashboard:
             widget.bind_signal(self.data_bus, signal)
         self.layout_engine.assign_widget(widget, row, col)
 
-    def run(self):
-        # Optionally initialize renderer and layout engine here
-        # Pass renderer and layout_engine to MainLoop if needed
-        mainloop = MainLoop(self.window, self.widgets, renderer=self.renderer, layout_engine=self.layout_engine)
+    def run(self, signal_source_update=None):
+        mainloop = MainLoop(
+            self.window, self.widgets,
+            renderer=self.renderer,
+            layout_engine=self.layout_engine,
+            signal_source_update=signal_source_update,
+        )
         mainloop.run()
