@@ -18,6 +18,13 @@ class BaseWidget:
 
     def update(self, data):
         raise NotImplementedError("update() must be implemented by subclass")
+    
+    def draw_lines(self, renderer):
+        pass
+
+    def draw_text(self, renderer):
+        pass
+
 
     def draw(self, renderer):
         raise NotImplementedError("draw() must be implemented by subclass")

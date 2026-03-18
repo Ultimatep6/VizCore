@@ -20,9 +20,17 @@ class MainLoop:
         self.window.clear()
         if self.renderer:
             self.renderer.begin_frame()
+
+            # Pass 1 — all line geometry (viewport changes happen here)
             for widget in self.widgets:
-                widget.draw(self.renderer)
+                widget.draw_lines(self.renderer)
+
+            # Pass 2 — all text on top (always full viewport)
+            for widget in self.widgets:
+                widget.draw_text(self.renderer)
+
             self.renderer.end_frame()
+
 
     def run(self):
         self.window.on_draw = self.on_draw  # override window's on_draw

@@ -57,6 +57,12 @@ class TextRenderer:
             [(self._vbo, '2f 2f', 'in_vert', 'in_uv')]
         )
 
+    def measure(self, text):
+        """Return (width, height) in pixels for a given string."""
+        w = sum(self.atlas.glyph_size[ch][0] for ch in text if ch in self.atlas.glyph_size)
+        h = max((self.atlas.glyph_size[ch][1] for ch in text if ch in self.atlas.glyph_size), default=0)
+        return w, h
+
     def draw(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0)):
         """
         Draw text at pixel position (x, y) from top-left.

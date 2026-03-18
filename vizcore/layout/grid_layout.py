@@ -25,8 +25,10 @@ class GridLayout:
         cell_width = self.width / self.cols
         cell_height = self.height / self.rows
         x = col * cell_width
-        y = row * cell_height
+        # Flip row so row=0 is at the top visually, but y=0 is bottom in GL
+        y = (self.rows - 1 - row) * cell_height
         return (x, y, cell_width, cell_height)
+
 
     def on_window_resize(self, width, height):
         self.width = width

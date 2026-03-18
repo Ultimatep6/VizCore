@@ -1,6 +1,10 @@
 import numpy as np
 from vizcore.widgets.base_widget import BaseWidget
 from vizcore.bus.ring_buffer import RingBuffer
+from vizcore.layout.rect import Rect
+
+
+TITLE_BAR_HEIGHT = 40  # pixels reserved at top for title
 
 class LinePlot(BaseWidget):
     """
@@ -41,16 +45,7 @@ class LinePlot(BaseWidget):
                 # Only update self.values if buffer has valid data
                 self.values[i] = np.array(self.buffers[i].history(), dtype='f4')
 
-    def draw(self, renderer):
-        # Draw title FIRST — before viewport is changed by line drawing
-        if self.title and self.rect:
-            renderer.draw_text(
-                self.title,
-                self.rect.x + self.margin,
-                self.rect.y + self.margin // 2,
-            )
-
-        # Then draw signal lines (these change the viewport)
+    def draw_lines(self, renderer):
         for i, values in enumerate(self.values):
             if len(values) < 2:
                 continue
@@ -59,19 +54,49 @@ class LinePlot(BaseWidget):
             y = 2.0 * (values - v_min) / (v_max - v_min + 1e-6) - 1.0
             points = np.column_stack((x, y)).flatten().astype('f4')
 
+            # Shrink the rect to leave space at top for title
+            plot_rect = Rect(
+                self.rect.x,
+                self.rect.y,
+                self.rect.width,
+                self.rect.height - (TITLE_BAR_HEIGHT if self.title else 0)
+            )
+
             if i in self._vbos:
                 self._vbos[i].write(points.tobytes())
                 renderer.draw_line_plot_vbo(
                     self._vbos[i], len(points) // 2,
-                    rect=self.rect, color=(0, 150 + i*50, 255 - i*50, 255),
+                    rect=plot_rect, color=(0, 150 + i*50, 255 - i*50, 255),
                     margin=self.margin
                 )
             else:
                 renderer.draw_line_plot(
-                    points, rect=self.rect,
+                    points, rect=plot_rect,
                     color=(0, 150 + i*50, 255 - i*50, 255),
                     margin=self.margin
                 )
+
+
+    def draw_text(self, renderer):
+        if self.title and self.rect:
+            cx = self.rect.x + self.rect.width // 2
+            y = self.rect.y + self.rect.height - 40
+            tw, th = renderer.text_title.measure(self.title)
+            pad = 6
+            # Dark background box behind title
+            renderer.draw_rect(
+                cx - tw // 2 - pad, y - pad,
+                tw + pad * 2, th + pad * 2,
+                color=(0.1, 0.1, 0.1, 1.0)
+            )
+            renderer.draw_title(self.title, cx, y)
+
+
+
+    def draw(self, renderer):
+        self.draw_lines(renderer)
+        self.draw_text(renderer)
+
 
             
 
