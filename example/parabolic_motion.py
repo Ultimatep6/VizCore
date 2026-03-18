@@ -35,9 +35,9 @@ if __name__ == "__main__":
 
     def sim_update():
         t, x, y, vy = next(sim)
-        dashboard.data_bus.push("vx", 5.0)   # constant
-        dashboard.data_bus.push("vy", vy)
-        dashboard.data_bus.push("x", x)
         dashboard.data_bus.push("y", y)
+        # temporary: draw test string directly
+        dashboard.renderer.draw_text("hello vizcore", 20, 20)
+
 
     dashboard.run(signal_source_update=sim_update)

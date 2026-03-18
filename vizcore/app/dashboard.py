@@ -33,7 +33,8 @@ class Dashboard:
         self.window = ApplicationWindow(width=width, height=height, title=title)
         self.data_bus = DataBus()
         # Create ModernGL context from window (assume window provides a ctx property or similar)
-        self.renderer = Renderer(self.window.ctx)
+        self.renderer = Renderer(self.window.ctx, window_size=(width, height))
+
         self.layout_engine = GridLayout(rows, cols, width, height)
         self.widgets = []
 

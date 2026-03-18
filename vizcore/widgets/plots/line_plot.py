@@ -14,14 +14,15 @@ class LinePlot(BaseWidget):
         - Multiple channels
         - Automatic scrolling
     """
-    def __init__(self, channels=1, buffer_size=512, margin=10):
+    def __init__(self, channels=1, buffer_size=512, margin=10, title=None):
         super().__init__()
         self.channels = channels
         self.buffer_size = buffer_size
         self.margin = margin
+        self.title = title
         self.buffers = [RingBuffer(buffer_size) for _ in range(channels)]
         self.values = [np.zeros(buffer_size, dtype='f4') for _ in range(channels)]
-        self._vbos = {}  # persistent GPU buffers, keyed by channel
+        self._vbos = {}
 
     def bind_renderer(self, renderer):
         """Call once after widget is created to pre-allocate GPU buffers."""
@@ -41,6 +42,15 @@ class LinePlot(BaseWidget):
                 self.values[i] = np.array(self.buffers[i].history(), dtype='f4')
 
     def draw(self, renderer):
+        # Draw title FIRST — before viewport is changed by line drawing
+        if self.title and self.rect:
+            renderer.draw_text(
+                self.title,
+                self.rect.x + self.margin,
+                self.rect.y + self.margin // 2,
+            )
+
+        # Then draw signal lines (these change the viewport)
         for i, values in enumerate(self.values):
             if len(values) < 2:
                 continue
@@ -50,20 +60,19 @@ class LinePlot(BaseWidget):
             points = np.column_stack((x, y)).flatten().astype('f4')
 
             if i in self._vbos:
-                buf = self._vbos[i]
-                buf.write(points.tobytes())
-
+                self._vbos[i].write(points.tobytes())
                 renderer.draw_line_plot_vbo(
-                    buf, len(points) // 2,
-                    rect=self.rect, color = (0, 150 + i*50, 255 - i*50, 255), margin=self.margin
+                    self._vbos[i], len(points) // 2,
+                    rect=self.rect, color=(0, 150 + i*50, 255 - i*50, 255),
+                    margin=self.margin
                 )
             else:
                 renderer.draw_line_plot(
-                    points,
-                    rect=self.rect,
+                    points, rect=self.rect,
                     color=(0, 150 + i*50, 255 - i*50, 255),
-                    margin = self.margin
+                    margin=self.margin
                 )
+
             
 
     def resize(self, rect):
