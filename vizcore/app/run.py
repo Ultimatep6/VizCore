@@ -5,6 +5,11 @@ from vizcore.app.dashboard import Dashboard
 from vizcore.layout.rect import Rect
 from vizcore.widgets.plots.line_plot import LinePlot
 
+# dashboard = Dashboard(fullscreen=True, title="Test", rows=2, cols=2)
+# plot1 = LinePlot(title="This Title Should Be Visible Now")
+# dashboard.add_widget(plot1, row=0, col=0, signal="test")
+# dashboard.run(signal_source_update=lambda: dashboard.data_bus.push("test", np.random.normal(0, 1)))
+
 dashboard = Dashboard(title="Line Plot Test", rows=2, cols=2, fullscreen=True)
 
 

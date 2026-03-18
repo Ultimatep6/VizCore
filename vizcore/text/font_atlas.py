@@ -22,31 +22,38 @@ class FontAtlas:
         font = ImageFont.truetype(font_path, font_size) if font_path \
                else ImageFont.load_default()
 
-        self._image, self.uvs, self.glyph_size = self._pack(font, atlas_size)
+        self._image, self.uvs, self.glyph_size, self.glyph_offset = self._pack(font, atlas_size)
         self.texture_data = np.array(self._image, dtype=np.uint8)
 
     def _pack(self, font, atlas_size):
-        image = Image.new('L', (atlas_size, atlas_size), 0)  # greyscale
+        image = Image.new('L', (atlas_size, atlas_size), 0)
         draw = ImageDraw.Draw(image)
         uvs = {}
         glyph_size = {}
+        glyph_offset = {}
 
         x, y = 0, 0
         row_height = 0
 
         for ch in self.CHARS:
             bbox = font.getbbox(ch)
+            offset_x = bbox[0]
+            offset_y = bbox[1]
+            glyph_offset[ch] = (offset_x, offset_y)
             w = bbox[2] - bbox[0]
             h = bbox[3] - bbox[1]
             w = max(w, 1)
             h = max(h, 1)
 
+            # ← wrap check BEFORE draw
             if x + w > atlas_size:
                 x = 0
                 y += row_height
                 row_height = 0
 
-            draw.text((x, y), ch, font=font, fill=255)
+            # ← single draw call with offset applied
+            draw.text((x - offset_x, y - offset_y), ch, font=font, fill=255)
+
             uvs[ch] = (
                 x / atlas_size,
                 y / atlas_size,
@@ -57,7 +64,9 @@ class FontAtlas:
             x += w
             row_height = max(row_height, h)
 
-        return image, uvs, glyph_size
+        return image, uvs, glyph_size, glyph_offset
+
+
 
     def upload(self, ctx):
         """Upload atlas texture to GPU, returns moderngl Texture."""

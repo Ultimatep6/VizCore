@@ -76,11 +76,11 @@ class TextRenderer:
                 continue
             u0, v0, u1, v1 = self.atlas.uvs[ch]
             gw, gh = self.atlas.glyph_size[ch]
+            ox, oy = self.atlas.glyph_offset.get(ch, (0, 0))  # ← baseline offset
 
-            x0, y0 = cursor_x,      y
-            x1, y1 = cursor_x + gw, y + gh
+            x0, y0 = cursor_x,      y + oy   # ← shift quad down by oy
+            x1, y1 = cursor_x + gw, y + oy + gh
 
-            # Two triangles (quad)
             verts += [
                 x0, y0, u0, v0,
                 x1, y0, u1, v0,
@@ -89,14 +89,14 @@ class TextRenderer:
                 x1, y1, u1, v1,
                 x0, y1, u0, v1,
             ]
-            cursor_x += gw
-
+            cursor_x += gw + ox  # ← also advance by full glyph width including left bearing
         if not verts:
             return
 
         data = np.array(verts, dtype='f4')
-        n_chars = len(text)
+        n_quads = len(verts) // (6 * 4)   # each quad = 6 vertices × 4 floats
         self._vbo.write(data.tobytes())
+
 
         self.prog['u_resolution'].value = tuple(self.window_size)
         self.prog['u_color'].value = color
@@ -106,5 +106,5 @@ class TextRenderer:
         # Blend so text alpha works correctly
         self.ctx.enable(moderngl.BLEND)
         self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
-        self._vao.render(moderngl.TRIANGLES, vertices=n_chars * 6)
+        self._vao.render(moderngl.TRIANGLES, vertices=n_quads * 6)
         self.ctx.disable(moderngl.BLEND)

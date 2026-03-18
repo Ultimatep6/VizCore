@@ -21,26 +21,29 @@ class Renderer:
         )
 
         font_atlas_body = FontAtlas(font_path=find_system_font(), font_size=18)
-        font_atlas_title = FontAtlas(font_path=find_system_font(), font_size=28)
+        font_atlas_title = FontAtlas(font_path=find_system_font(), font_size=42)
 
         self.text       = TextRenderer(ctx, font_atlas_body, window_size)
         self.text_title = TextRenderer(ctx, font_atlas_title, window_size)
 
+    def _gl_to_pixel_y(self, gl_y):
+        """Convert OpenGL y-coordinate (bottom=0) to pixel y-coordinate (top=0).
+        
+        Note: y in TextRenderer represents the TOP edge of the text bounding box,
+        so we don't need to adjust for font height here.
+        """
+        return self.window_size[1] - gl_y
 
     def draw_text(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0)):
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
-        font_height = self.text.atlas.font_size
-        flipped_y = self.window_size[1] - y - font_height
-        self.text.draw(text, x, flipped_y, color)
+        """Draw text at position (x,y) in OpenGL coordinates."""
+        pixel_y = self._gl_to_pixel_y(y)
+        self.text.draw(text, x, pixel_y, color)
     
     def draw_title(self, text, cx, y, color=(1.0, 1.0, 1.0, 1.0)):
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
+        """Draw title text centered at cx, at y position in OpenGL coordinates."""
         w, _ = self.text_title.measure(text)
-        # y is already in GL bottom-left space
-        # Place title near top of widget rect: y + rect_height - padding
-        self.text_title.draw(text, cx - w // 2, y, color)
-
-
+        pixel_y = self._gl_to_pixel_y(y)
+        self.text_title.draw(text, cx - w // 2, pixel_y, color)
 
     def draw_text_centered(self, text, cx, y, color=(1.0, 1.0, 1.0, 1.0)):
         """Draw text horizontally centered around pixel x=cx."""
@@ -51,12 +54,16 @@ class Renderer:
         return self.text.measure(text)
     
     def draw_rect(self, x, y, w, h, color=(0.1, 0.1, 0.1, 1.0)):
-        """Draw a filled rectangle in window pixel coordinates."""
-        # Convert to NDC
+        """Draw a filled rectangle in OpenGL coordinates (y=0 at bottom)."""
+        # Convert OpenGL coords to NDC
         nx = (x / self.window_size[0]) * 2 - 1
-        ny = (y / self.window_size[1]) * 2 - 1
+        # y is bottom edge in GL coords; convert to NDC
+        # Bottom of rect in GL: y -> top in pixels: window_size[1] - y
+        # Top of rect in GL: y + h -> top in pixels: window_size[1] - (y + h)
+        ny = (1 - (y + h) / self.window_size[1]) * 2 - 1
         nw = (w / self.window_size[0]) * 2
         nh = (h / self.window_size[1]) * 2
+        
         verts = np.array([
             nx,      ny,
             nx + nw, ny,
@@ -65,49 +72,44 @@ class Renderer:
             nx + nw, ny + nh,
             nx,      ny + nh,
         ], dtype='f4')
+        
         prog = self.shader_manager.get_shader('line_plot')
         vbo = self.ctx.buffer(verts.tobytes())
         vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
         prog['u_color'].value = color
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
         vao.render(moderngl.TRIANGLES)
         vbo.release()
 
-
+    def _draw_line_plot_internal(self, vbo, n_points, rect=None, color=(0,200,255,255), margin=10):
+        """Internal method for line plot rendering (eliminates duplication)."""
+        prog = self.shader_manager.get_shader('line_plot')
+        if prog is None:
+            return
+        
+        if rect is not None:
+            self.ctx.viewport = (
+                int(rect.x + margin), int(rect.y + margin),
+                int(rect.width - 2 * margin), int(rect.height - 2 * margin)
+            )
+        
+        vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
+        prog['u_color'].value = tuple(c / 255.0 for c in color)
+        vao.render(moderngl.LINE_STRIP, vertices=n_points)
+        
+        # Restore full viewport
+        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
 
     def draw_line_plot_vbo(self, vbo, n_points, rect=None, color=(0,200,255,255), margin=10):
-        prog = self.shader_manager.get_shader('line_plot')
-        if prog is None:
-            return
-        vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
-        prog['u_color'].value = tuple(c / 255.0 for c in color)
-        if rect is not None:
-            self.ctx.viewport = (
-                int(rect.x + margin), int(rect.y + margin),
-                int(rect.width - 2 * margin), int(rect.height - 2 * margin)
-            )
-        vao.render(moderngl.LINE_STRIP, vertices=n_points)
-        # Restore to full window — NOT self.ctx.viewport[2:] which is now widget size
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
+        """Draw line plot using pre-allocated VBO."""
+        self._draw_line_plot_internal(vbo, n_points, rect, color, margin)
 
     def draw_line_plot(self, points, rect=None, color=(0, 200, 255, 255), margin=10):
+        """Draw line plot from point array."""
         if len(points) < 4:
             return
-        prog = self.shader_manager.get_shader('line_plot')
-        if prog is None:
-            return
-        if rect is not None:
-            self.ctx.viewport = (
-                int(rect.x + margin), int(rect.y + margin),
-                int(rect.width - 2 * margin), int(rect.height - 2 * margin)
-            )
         vbo = self.ctx.buffer(points.astype('f4').tobytes())
-        vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
-        prog['u_color'].value = tuple(c / 255.0 for c in color)
-        vao.render(moderngl.LINE_STRIP)
+        self._draw_line_plot_internal(vbo, len(points) // 2, rect, color, margin)
         vbo.release()
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
-
 
     def begin_frame(self):
         self.ctx.clear(0.1, 0.1, 0.1)

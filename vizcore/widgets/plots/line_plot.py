@@ -4,7 +4,7 @@ from vizcore.bus.ring_buffer import RingBuffer
 from vizcore.layout.rect import Rect
 
 
-TITLE_BAR_HEIGHT = 40  # pixels reserved at top for title
+TITLE_BAR_HEIGHT = 100  # pixels reserved at top for title
 
 class LinePlot(BaseWidget):
     """
