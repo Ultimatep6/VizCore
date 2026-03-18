@@ -1,3 +1,5 @@
+from vizcore.layout.rect import Rect
+
 class GridLayout:
     """
     Primary layout engine.
@@ -29,11 +31,15 @@ class GridLayout:
         y = (self.rows - 1 - row) * cell_height
         return (x, y, cell_width, cell_height)
 
-
     def on_window_resize(self, width, height):
+        """Called when window resizes - updates all widget rectangles."""
         self.width = width
         self.height = height
-        # Optionally recompute widget rectangles or notify widgets
+        
+        # Recalculate and update all widget rectangles
+        for (row, col), widget in self.widgets.items():
+            x, y, w, h = self.compute_rect(row, col)
+            widget.resize(Rect(x, y, w, h))
 
     def get_widget_rects(self):
         rects = {}

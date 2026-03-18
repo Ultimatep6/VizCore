@@ -70,6 +70,10 @@ class Renderer:
     
     def draw_rect(self, x, y, w, h, color=(0.1, 0.1, 0.1, 1.0)):
         """Draw a filled rectangle in OpenGL coordinates (y=0 at bottom)."""
+        # Safeguard against invalid dimensions
+        if w <= 0 or h <= 0 or self.window_size[0] <= 0 or self.window_size[1] <= 0:
+            return
+            
         # Convert OpenGL coords to NDC
         nx = (x / self.window_size[0]) * 2 - 1
         # y is bottom edge in GL coords; convert to NDC
@@ -100,17 +104,26 @@ class Renderer:
             return
         
         if rect is not None:
-            self.ctx.viewport = (
-                int(rect.x + margin), int(rect.y + margin),
-                int(rect.width - 2 * margin), int(rect.height - 2 * margin)
-            )
+            # Calculate viewport dimensions with margin
+            vp_x = int(rect.x + margin)
+            vp_y = int(rect.y + margin)
+            vp_width = int(rect.width - 2 * margin)
+            vp_height = int(rect.height - 2 * margin)
+            
+            # Safeguard: ensure viewport has valid positive dimensions
+            if vp_width > 0 and vp_height > 0:
+                self.ctx.viewport = (vp_x, vp_y, vp_width, vp_height)
+            else:
+                # Skip rendering if viewport would be invalid
+                return
         
         vao = self.ctx.simple_vertex_array(prog, vbo, 'in_vert')
         prog['u_color'].value = tuple(c / 255.0 for c in color)
         vao.render(moderngl.LINE_STRIP, vertices=n_points)
         
-        # Restore full viewport
-        self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
+        # Restore full viewport only if window size is valid
+        if self.window_size[0] > 0 and self.window_size[1] > 0:
+            self.ctx.viewport = (0, 0, self.window_size[0], self.window_size[1])
 
     def draw_line_plot_vbo(self, vbo, n_points, rect=None, color=(0,200,255,255), margin=10):
         """Draw line plot using pre-allocated VBO."""
