@@ -34,10 +34,10 @@ class Renderer:
         """
         return self.window_size[1] - gl_y
 
-    def draw_text(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0)):
-        """Draw text at position (x,y) in OpenGL coordinates."""
+    def draw_text(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0), rotation_deg=0.0):
+        """Draw text at position (x,y) in OpenGL coordinates with optional rotation."""
         pixel_y = self._gl_to_pixel_y(y)
-        self.text.draw(text, x, pixel_y, color)
+        self.text.draw(text, x, pixel_y, color, rotation_deg=rotation_deg)
     
     def draw_title(self, text, cx, y, color=(1.0, 1.0, 1.0, 1.0)):
         """Draw title text centered at cx, at y position in OpenGL coordinates."""
@@ -49,6 +49,21 @@ class Renderer:
         """Draw text horizontally centered around pixel x=cx."""
         w, _ = self.text.measure(text)
         self.draw_text(text, cx - w // 2, y, color)
+    
+    def draw_axis_label_y(self, text, x, cy, color=(1.0, 1.0, 1.0, 1.0)):
+        """Draw Y-axis label rotated 90 degrees counterclockwise, vertically centered at cy."""
+        # Convert GL y-coordinate to pixel coordinate
+        pixel_cy = self._gl_to_pixel_y(cy)
+        
+        # For vertical text, we want to center it vertically
+        # After rotation, the text height becomes the horizontal extent
+        w, h = self.text.measure(text)
+        # Adjust y position to center the rotated text
+        # When rotated 90°, the text's "width" becomes its vertical extent
+        adjusted_y = pixel_cy - w // 2
+        
+        # Rotate 90 degrees counterclockwise for vertical text
+        self.text.draw(text, x, adjusted_y, color, rotation_deg=90.0)
 
     def measure_text(self, text):
         return self.text.measure(text)
@@ -58,8 +73,6 @@ class Renderer:
         # Convert OpenGL coords to NDC
         nx = (x / self.window_size[0]) * 2 - 1
         # y is bottom edge in GL coords; convert to NDC
-        # Bottom of rect in GL: y -> top in pixels: window_size[1] - y
-        # Top of rect in GL: y + h -> top in pixels: window_size[1] - (y + h)
         ny = (1 - (y + h) / self.window_size[1]) * 2 - 1
         nw = (w / self.window_size[0]) * 2
         nh = (h / self.window_size[1]) * 2

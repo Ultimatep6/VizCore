@@ -5,6 +5,8 @@ from vizcore.layout.rect import Rect
 
 
 TITLE_BAR_HEIGHT = 100  # pixels reserved at top for title
+X_AXIS_LABEL_HEIGHT = 40  # pixels reserved at bottom for x-axis label
+Y_AXIS_LABEL_WIDTH = 50   # pixels reserved at left for y-axis label
 
 class LinePlot(BaseWidget):
     """
@@ -17,13 +19,29 @@ class LinePlot(BaseWidget):
     Features:
         - Multiple channels
         - Automatic scrolling
+        - Axis titles (x and y) with proper rotation
+        - Title bar
     """
-    def __init__(self, channels=1, buffer_size=512, margin=10, title=None):
+    def __init__(self, channels=1, buffer_size=512, margin=10, title=None, 
+                 x_label=None, y_label=None):
+        """
+        Initialize LinePlot widget.
+        
+        Args:
+            channels: Number of data channels to plot
+            buffer_size: Size of ring buffer for each channel
+            margin: Margin around plot area in pixels
+            title: Title text displayed at top of widget
+            x_label: Label for X-axis (horizontal, centered at bottom)
+            y_label: Label for Y-axis (vertical, rotated 90°, centered on left)
+        """
         super().__init__()
         self.channels = channels
         self.buffer_size = buffer_size
         self.margin = margin
         self.title = title
+        self.x_label = x_label
+        self.y_label = y_label
         self.buffers = [RingBuffer(buffer_size) for _ in range(channels)]
         self.values = [np.zeros(buffer_size, dtype='f4') for _ in range(channels)]
         self._vbos = {}
@@ -33,7 +51,6 @@ class LinePlot(BaseWidget):
         for i in range(self.channels):
             points = np.zeros(self.buffer_size * 2, dtype='f4')  # x,y interleaved
             self._vbos[i] = renderer.ctx.buffer(points.tobytes())
-
 
     def update(self, data=None):
         # Pull latest values from the data bus for each signal
@@ -54,12 +71,16 @@ class LinePlot(BaseWidget):
             y = 2.0 * (values - v_min) / (v_max - v_min + 1e-6) - 1.0
             points = np.column_stack((x, y)).flatten().astype('f4')
 
-            # Shrink the rect to leave space at top for title
+            # Calculate plot area, accounting for title and axis labels
+            top_padding = TITLE_BAR_HEIGHT if self.title else 0
+            bottom_padding = X_AXIS_LABEL_HEIGHT if self.x_label else 0
+            left_padding = Y_AXIS_LABEL_WIDTH if self.y_label else 0
+            
             plot_rect = Rect(
-                self.rect.x,
-                self.rect.y,
-                self.rect.width,
-                self.rect.height - (TITLE_BAR_HEIGHT if self.title else 0)
+                self.rect.x + left_padding,
+                self.rect.y + bottom_padding,
+                self.rect.width - left_padding,
+                self.rect.height - top_padding - bottom_padding
             )
 
             if i in self._vbos:
@@ -76,9 +97,12 @@ class LinePlot(BaseWidget):
                     margin=self.margin
                 )
 
-
     def draw_text(self, renderer):
-        if self.title and self.rect:
+        if not self.rect:
+            return
+            
+        # Draw title at top
+        if self.title:
             cx = self.rect.x + self.rect.width // 2
             y = self.rect.y + self.rect.height - 40
             tw, th = renderer.text_title.measure(self.title)
@@ -91,14 +115,24 @@ class LinePlot(BaseWidget):
             )
             renderer.draw_title(self.title, cx, y)
 
+        # Draw X-axis label at bottom center
+        if self.x_label:
+            cx = self.rect.x + self.rect.width // 2
+            y = self.rect.y + 10  # 10 pixels from bottom
+            renderer.draw_text_centered(self.x_label, cx, y)
 
+        # Draw Y-axis label on left side (rotated 90 degrees)
+        if self.y_label:
+            # Position at vertical center of the widget
+            cy = self.rect.y + self.rect.height // 2
+            x = self.rect.x + 15  # 15 pixels from left edge
+            
+            # Draw rotated text (90 degrees counterclockwise)
+            renderer.draw_axis_label_y(self.y_label, x, cy)
 
     def draw(self, renderer):
         self.draw_lines(renderer)
         self.draw_text(renderer)
-
-
-            
 
     def resize(self, rect):
         super().resize(rect)

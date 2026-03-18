@@ -28,7 +28,7 @@ class Dashboard:
         if fullscreen:
             display = pyglet.display.get_display()
             screen = display.get_default_screen()
-            width, height = screen.width, screen.height
+            width, height = screen.width - 60, screen.height - 60
 
         self.window = ApplicationWindow(width=width, height=height, title=title)
         self.data_bus = DataBus()
