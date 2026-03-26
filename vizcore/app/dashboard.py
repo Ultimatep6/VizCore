@@ -75,6 +75,9 @@ class Dashboard:
             screen_index=screen_index
         )
         
+        # Connect window back to dashboard for close handling
+        self.window.dashboard = self
+        
         # Now create renderer with the window's context
         self.renderer = Renderer(self.window.ctx, window_size=(width, height))
         
@@ -87,6 +90,7 @@ class Dashboard:
         # Connect layout engine to window so resize events propagate
         self.window.layout_engine = self.layout_engine
         self.widgets = []
+        self._running = False
 
     def add_widget(self, widget, row=0, col=0, signal=None):
         self.widgets.append(widget)
@@ -98,7 +102,53 @@ class Dashboard:
         widget.resize(Rect(x, y, w, h))
         widget.bind_renderer(self.renderer)
 
+    def close(self):
+        """
+        Close the dashboard and clean up resources.
+        
+        This method:
+        - Stops the main loop
+        - Closes the window
+        - Releases GPU resources
+        - Cleans up widgets
+        """
+        if not self._running:
+            return  # Already closed
+            
+        self._running = False
+        
+        # Clean up widgets
+        for widget in self.widgets:
+            if hasattr(widget, 'cleanup'):
+                widget.cleanup()
+        
+        # Release GPU buffers if renderer has buffer allocator
+        if hasattr(self.renderer, 'buffer_allocator'):
+            self.renderer.buffer_allocator.release_all()
+        
+        # Close the window (this will also stop the event loop)
+        try:
+            self.window.close()
+        except:
+            pass
+        
+        # Stop pyglet event loop
+        try:
+            pyglet.app.exit()
+        except:
+            pass
+        
+        print("Dashboard closed successfully")
+
     def run(self, signal_source_update=None):
+        """
+        Start the dashboard main loop.
+        
+        Args:
+            signal_source_update: Optional callback function called each frame
+                                 to update telemetry data
+        """
+        self._running = True
         mainloop = MainLoop(
             self.window, self.widgets,
             renderer=self.renderer,

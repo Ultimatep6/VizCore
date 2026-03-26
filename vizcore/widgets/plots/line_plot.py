@@ -66,6 +66,8 @@ class LinePlot(BaseWidget):
         for i, values in enumerate(self.values):
             if len(values) < 2:
                 continue
+
+            # Normalize values to [-1, 1] for plotting, and create interleaved x,y points
             x = np.linspace(-1.0, 1.0, len(values))
             v_min, v_max = np.min(values), np.max(values)
             y = 2.0 * (values - v_min) / (v_max - v_min + 1e-6) - 1.0
@@ -76,6 +78,7 @@ class LinePlot(BaseWidget):
             bottom_padding = X_AXIS_LABEL_HEIGHT if self.x_label else 0
             left_padding = Y_AXIS_LABEL_WIDTH if self.y_label else 0
             
+            # Define the rectangle for the line plot area
             plot_rect = Rect(
                 self.rect.x + left_padding,
                 self.rect.y + bottom_padding,
@@ -83,6 +86,7 @@ class LinePlot(BaseWidget):
                 self.rect.height - top_padding - bottom_padding
             )
 
+            # Send to GPU and draw using renderer
             if i in self._vbos:
                 self._vbos[i].write(points.tobytes())
                 renderer.draw_line_plot_vbo(

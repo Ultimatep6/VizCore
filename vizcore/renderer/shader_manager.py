@@ -14,7 +14,14 @@ class ShaderManager:
         self.ctx = ctx
         self._cache = {}
 
-    def load_shader(self, name, vertex_path, fragment_path):
+    def load_shader(self, name:str, vertex_path, fragment_path):
+        """
+        Docstring for load_shader
+        
+        :param name: String that holds the name of the render package
+        :param vertex_path: String that holds the path to the render package vertex shader
+        :param fragment_path: String that holds the path to the render package fragment shader
+        """
         if name in self._cache:
             return self._cache[name]
         with open(vertex_path, 'r') as vfile:

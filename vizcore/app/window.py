@@ -96,6 +96,7 @@ class ApplicationWindow(pyglet.window.Window):
         self.min_width = min_width
         self.min_height = min_height
         self.selected_screen = screen
+        self.dashboard = None  # Will be set by Dashboard for close callback
         
         # Store original windowed size for toggling back
         self._windowed_width = 1024
@@ -137,15 +138,37 @@ class ApplicationWindow(pyglet.window.Window):
             self.layout_engine.on_window_resize(width, height)
 
     def on_key_press(self, symbol, modifiers):
-        # Allow ESC or F11 to toggle fullscreen
-        if symbol == key.ESCAPE and self._is_fullscreen:
-            self.exit_fullscreen()
+        # Allow ESC to exit fullscreen or close window
+        if symbol == key.ESCAPE:
+            if self._is_fullscreen:
+                self.exit_fullscreen()
+            else:
+                # In windowed mode, ESC closes the application
+                if self.dashboard:
+                    self.dashboard.close()
+                else:
+                    self.close()
+                    pyglet.app.exit()
         elif symbol == key.F11:
             self.toggle_fullscreen()
+        # Q key to quit (common shortcut)
+        elif symbol == key.Q and (modifiers & key.MOD_CTRL):
+            if self.dashboard:
+                self.dashboard.close()
+            else:
+                self.close()
+                pyglet.app.exit()
         
         for widget in self.widgets:
             if hasattr(widget, 'handle_key_event'):
                 widget.handle_key_event(symbol, modifiers)
+
+    def on_close(self):
+        """Handle window close event (e.g., clicking X button)."""
+        if self.dashboard:
+            self.dashboard.close()
+        else:
+            super().on_close()
 
     def toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode."""

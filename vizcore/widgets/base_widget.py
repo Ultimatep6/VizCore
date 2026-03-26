@@ -40,4 +40,7 @@ class BaseWidget:
         pass
 
     def bind_renderer(self, renderer):
+        """
+        Called once at startup, made to delegate GPU buffer space for all the relevant vertices
+        """
         pass  # override in widgets that need GPU buffer pre-allocation

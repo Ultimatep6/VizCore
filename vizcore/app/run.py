@@ -26,7 +26,7 @@ from vizcore.layout.rect import Rect
 from vizcore.widgets.plots.line_plot import LinePlot
 
 # Choose your fullscreen mode here:
-FULLSCREEN_MODE = 'borderless'  # 'borderless', 'exclusive', or 'maximized'
+FULLSCREEN_MODE = 'maximized'  # 'borderless', 'exclusive', or 'maximized'
 
 # Choose your screen:
 # None = auto-detect largest (recommended for laptop + external monitor setups)
