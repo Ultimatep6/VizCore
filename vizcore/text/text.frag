@@ -1,13 +1,10 @@
-#version 330 core
+#version 330
+uniform sampler2D u_atlas;  // Font atlas texture
+uniform vec4 u_color;       // Text color (r, g, b, a)
+in vec2 v_uv;
+out vec4 f_color;
 
-in vec2 TexCoords;
-out vec4 color;
-
-uniform sampler2D text;
-uniform vec3 textColor;
-
-void main()
-{
-    float sampled = texture(text, TexCoords).r;  // grayscale from atlas
-    color = vec4(textColor, sampled);
+void main() {
+    float alpha = texture(u_atlas, v_uv).r;  // Sample grayscale atlas
+    f_color = vec4(u_color.rgb, u_color.a * alpha);
 }
