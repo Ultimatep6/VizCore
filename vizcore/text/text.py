@@ -6,8 +6,7 @@ import moderngl
 import pyglet
 
 class TextAtlas:
-    def __init__(self, window, font_path, font_size=48, atlas_size=2048):
-        self.window = window
+    def __init__(self, font_path, font_size=48, atlas_size=2048):
 
         self.font_path = font_path
         self.font_size = font_size
@@ -99,7 +98,7 @@ class TextRenderer:
         with open("vizcore/text/text.frag", "r") as frag_file:
             frag_shader = frag_file.read()
 
-        self.program = self.window.ctx.program(
+        self._prog = self.window.ctx.program(
             vertex_shader=vert_shader,
             fragment_shader=frag_shader
         )
@@ -111,7 +110,7 @@ class TextRenderer:
         cursor_x = x
         ctx = self.window.ctx
 
-        prog = self.program
+        prog = self._prog
         characters = self.atlas.characters
         texture = self.window.texture
         
@@ -184,6 +183,98 @@ class TextRenderer:
         # Clean up
         ctx.disable(moderngl.BLEND)
         vbo.release()
+
+    @staticmethod
+    def _billboard_mvp(world_pos, view, projection, scale=0.05):
+        """
+        Build a billboard MVP for a label at `world_pos`.
+
+        Extracts right/up axes from the VIEW matrix (inverse rotation columns)
+        so the quad always faces the camera regardless of orientation.
+
+        scale: world-space size of one atlas pixel (tune to taste)
+        """
+        # View matrix upper-left 3x3 is R (rotation). Its rows are camera axes
+        # expressed in world space. We need columns of R^T = rows of R.
+        right = view[0, :3]   # camera right in world space
+        up    = -view[1, :3]   # camera up in world space
+
+        # Build billboard model matrix
+        # Columns: right, up, forward(unused for flat quad), translation
+        m = np.eye(4, dtype=np.float32)
+        m[:3, 0] = right  * scale
+        m[:3, 1] = up     * scale
+        m[:3, 3] = world_pos
+
+        return projection @ view @ m
+    
+    def render_label(self, text, world_pos, view, projection,
+                     color=(1.0, 1.0, 1.0, 1.0), scale=0.05):
+        """
+        Render `text` as a billboard at `world_pos` (3-element array/list).
+
+        view, projection: 4x4 numpy arrays (row-major, same convention as OrientationFrame)
+        scale: world-space size per atlas pixel — controls physical text size
+        """
+        ctx = self.window.ctx
+
+        characters = self.atlas.characters
+        verts = []
+        cursor_x = 0.0   # local X offset in atlas-pixel units
+
+        for ch in text:
+            if ch not in characters:
+                continue
+
+            char_info = characters[ch]
+            u0, v0, u1, v1 = char_info['uv']
+            gw, gh = char_info['size']
+            ox, oy = char_info['bearing']
+
+            # Local quad corners (in atlas-pixel units; billboard matrix applies scale)
+            x0 = cursor_x + ox
+            y0 = oy          # bearing flips Y (same logic as your 2D renderer)
+            x1 = x0 + gw
+            y1 = y0 + gh
+
+            # 3D position: X and Y are local billboard axes, Z=0 (flat quad)
+            verts += [
+                x0, y0, 0.0,  u0, v0,
+                x1, y0, 0.0,  u1, v0,
+                x0, y1, 0.0,  u0, v1,
+                x1, y0, 0.0,  u1, v0,
+                x1, y1, 0.0,  u1, v1,
+                x0, y1, 0.0,  u0, v1,
+            ]
+
+            cursor_x += char_info['advance']
+
+        if not verts:
+            return
+
+        mvp = self._billboard_mvp(np.array(world_pos, dtype=np.float32),
+                                  view, projection, scale)
+
+        verts_array = np.array(verts, dtype='f4')
+        vbo = ctx.buffer(verts_array.tobytes())
+        vao = ctx.vertex_array(
+            self._prog,
+            [(vbo, '3f 2f', 'in_vert', 'in_uv')],
+        )
+
+        self._prog['mvp'].write(mvp.astype('f4').T.tobytes())
+        self._prog['u_color'].value = color if len(color) == 4 else (*color, 1.0)
+        self.window.texture.use(location=0)
+        self._prog['u_atlas'].value = 0
+
+        ctx.enable(moderngl.BLEND)
+        ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+
+        vao.render(moderngl.TRIANGLES)
+
+        ctx.disable(moderngl.BLEND)
+        vbo.release()
+
 
 
 def render_with_freetype(char, face):
