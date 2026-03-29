@@ -36,6 +36,14 @@ if __name__ == "__main__":
         label_scale=0.003,   # tune: smaller = smaller text in world space
     )
 
+    vel = np.array([-4, 10, 0.0], dtype=np.float32)
+
+    frame.signal_names = ["dynamic_signal"]
+    
+    frame.values = {"dynamic_signal": vel}  # initialize with zero velocity
+
+    frame._build_verts()  # build geometry and upload to GPU
+
     camera_tilt  = rotation_x(np.radians(25))
     camera_trans = translation(0, -0.3, -3)
     view         = camera_trans @ camera_tilt
