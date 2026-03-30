@@ -1,6 +1,9 @@
 from vizcore.meshes.cone import generate_cone
 from vizcore.meshes.cylinder import generate_cylinder
 from vizcore.utils import rotation_x, rotation_y, translation, perspective, rotation_matrix_from_vectors
+from vizcore.bus.ring_buffer import RingBuffer
+from vizcore.bus.data_bus import DataBus
+
 import numpy as np
 import pyglet
 import moderngl
@@ -35,8 +38,8 @@ class KinematicFrame:
 
     def __init__(self, ctx, shaft_radius=0.04, shaft_height=0.7,
                  head_radius=0.10, head_height=0.3, segments=32,
-                 buffer_size=256, channels=0,
-                 text_renderer=None, label_scale=0.003,): # the length of the arrow adds to 1
+                 label_scale=0.003,buffer_size=256, channels=0,
+                 text_renderer=None, data_bus:DataBus=None): # the length of the arrow adds to 1
         self.ctx = ctx
 
         self._shaft_height = shaft_height
@@ -48,10 +51,14 @@ class KinematicFrame:
             shaft_radius, shaft_height, head_radius, head_height, segments
         )
 
+        # The number of additional dynamic arrows to support (beyond the 3 basis arrows)
         self.channels = channels
+
+        # The names of the signals attached to this frame, in order of their corresponding dynamic arrows
         self.signal_names = []
-        self._buffer_size = buffer_size
-        self.values = {}
+
+        self._default_buffer_size = buffer_size
+        self.data_bus = data_bus
 
     def _build_verts(self):
     
@@ -92,6 +99,7 @@ class KinematicFrame:
             self.arrow_inds + n_x + n_y
         ], axis=0).astype(np.uint32).ravel()
 
+        # Static buffers for basis arrows (X,Y,Z) -- They won't change, so we can upload once and reuse
         basis_vbo = self.ctx.buffer(basis_verts.astype("f4").tobytes())
         basis_ibo = self.ctx.buffer(basis_inds.tobytes())
 
@@ -100,9 +108,18 @@ class KinematicFrame:
             self.arrow_inds + (i * len(self.arrow_verts)) for i in range(n_v)
         ], axis=0).astype(np.uint32).ravel()
 
-
+        # Static buffers for dynamic arrows -- The vertex data (geometry + color) is static, but the instance data (rotation + scale) will be updated each frame
         signal_vbo = self.ctx.buffer(signal_verts.astype("f4").tobytes())
         signal_ibo = self.ctx.buffer(signal_inds.tobytes())
+
+        # Dynamic buffer data for instance transformations (rotation + scale) -- Will be updated each frame based on the latest signal values
+        self.rotation_matrices = np.tile(np.eye(3, dtype='f4'), (n_v, 1, 1))  # shape (num_instances, 3, 3)
+        self.scale_vectors = np.ones((n_v, 3), dtype='f4')  # shape (num_instances, 3)
+        # normalize the scale_vectors row wise
+        self.scale_vectors = np.linalg.norm(self.scale_vectors, axis=1, keepdims=True) + 1e-8
+
+        self.data_bus.register_signal("rotation_matrices", buffer_size=self.rotation_matrices.reshape(-1, 9).tobytes().__len__())
+        self.data_bus.register_signal("scale_vectors", buffer_size=self.scale_vectors.tobytes().__len__())
 
         # Define programs
         self._static_prog = self.ctx.program(
@@ -115,10 +132,7 @@ class KinematicFrame:
             fragment_shader=self.FRAG_SHADER,
         )
 
-        self.rotation_matrices = np.tile(np.eye(3, dtype='f4'), (n_v, 1, 1))  # shape (num_instances, 3, 3)
-        self.scale_vectors = np.ones((n_v, 3), dtype='f4')  # shape (num_instances, 3)
-        # normalize the scale_vectors row wise
-        self.scale_vectors = np.linalg.norm(self.scale_vectors, axis=1, keepdims=True) + 1e-8
+        
 
         print(f"Shape of rotation_matrices: {self.rotation_matrices.shape}, scale_vectors: {self.scale_vectors.shape}")
         
@@ -150,18 +164,16 @@ class KinematicFrame:
         self.buffers['scaling'].write(self.scale_vectors.astype('f4').tobytes())
 
     def attach_signal(self, bus, signal):
-        raise NotImplementedError("Buffer streaming not yet implemented for KinematicFrame")
-        # self.bus = bus
         if signal not in bus.signals:
             raise ValueError(f"Signal '{signal}' not found in data bus")
         elif signal in self.signal_names:
             pass
         else:
             self.signal_names.append(signal)
-            self.buffers.append(CircularBuffer(self.buffer_size))
+            bus.register_signal(signal)
 
     def update(self, data=None):
-        # Pull latest values from the data bus for each signal
+        # Update the gpu buffers with the latest data from the bus for each attached signal
         if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
             for i, name in enumerate(self.signal_names):
                 value = self.data_bus.latest(name)
