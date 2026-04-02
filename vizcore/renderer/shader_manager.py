@@ -34,6 +34,25 @@ class ShaderManager:
         )
         self._cache[name] = program
         return program
+    
+    def set_uniform(self, shader_name, uniform_name, value):
+        """
+        Set a uniform value for a shader program.
+        
+        :param shader_name: Name of the shader program to set the uniform for
+        :param uniform_name: Name of the uniform variable in the shader
+        :param value: Value to set for the uniform (can be int, float, tuple, list, or numpy array)
+        """
+        program = self.get_shader(shader_name)
+        if program is None:
+            raise ValueError(f"Shader '{shader_name}' not found in cache.")
+        if uniform_name not in program:
+            raise ValueError(f"Uniform '{uniform_name}' not found in shader '{shader_name}'.")
+        
+        if isinstance(value, bytes):
+            program[uniform_name].write(value)
+        else:
+            program[uniform_name].value = value
 
     def get_shader(self, name):
         return self._cache.get(name)

@@ -1,19 +1,19 @@
 from vizcore.meshes.cone import generate_cone
 from vizcore.meshes.cylinder import generate_cylinder
-from vizcore.utils import rotation_x, rotation_y, translation, perspective, rotation_matrix_from_vectors
+from vizcore.utils import rotation_x, rotation_y, rotation_z, rotation_matrix_from_vectors
 from vizcore.bus.ring_buffer import RingBuffer
-from vizcore.bus.data_bus import DataBus
+from vizcore.widget.baseWidget import BaseWidget
 
 import numpy as np
-import pyglet
-import moderngl
+# import pyglet
+# import moderngl
 
 
 # ─────────────────────────────────────────────
 #  KinematicFrame
 # ─────────────────────────────────────────────
 
-class KinematicFrame:
+class KinematicFrame(BaseWidget):
     RED = [0.9, 0.2, 0.2]
     GREEN = [0.2, 0.85, 0.2]
     BLUE = [0.2, 0.4, 0.95]
@@ -29,181 +29,181 @@ class KinematicFrame:
         frame.render(mvp)
     """
 
-    with open("vizcore/widget/shaders/dynamic_arrow.vert", "r") as vert_file:
-        DYNAMIC_VERT = vert_file.read()
-    with open("vizcore/widget/shaders/static_arrow.vert", "r") as vert_file:
-        STATIC_VERT = vert_file.read()
-    with open("vizcore/widget/shaders/arrow.frag", "r") as frag_file:
-        FRAG_SHADER = frag_file.read()
-
-    def __init__(self, ctx, shaft_radius=0.04, shaft_height=0.7,
+    def __init__(self, shaft_radius=0.04, shaft_height=0.7,
                  head_radius=0.10, head_height=0.3, segments=32,
                  label_scale=0.003,buffer_size=256, channels=0,
-                 text_renderer=None, data_bus:DataBus=None): # the length of the arrow adds to 1
-        self.ctx = ctx
+                 margin=0.1, title="",
+                 text_renderer=None, renderer=None): # the length of the arrow adds to 1
+        
+        super().__init__()  # Initialize BaseWidget
+        self.channels = channels
+        self._default_buffer_size = buffer_size
+        # The names of the signals attached to this frame, in order of their corresponding dynamic arrows
+       
+        self._vbos = {}
+        self._local = {}  # Store latest local data for each signal (e.g., rotation + scale for dynamic arrows)
+        self.signal_names = []  # Name of signals, strictly for dynamic arrows and for vector inputs.
 
+        # Visual parameters
+        self.margin = margin
+        self.title = title
+
+        # Geometry parameters
         self._shaft_height = shaft_height
         self._head_height  = head_height
-        self._text_renderer = text_renderer
         self._label_scale   = label_scale
+
+        self.arrows = self.channels + 3  # total arrows = basis (3) + dynamic (channels)
 
         self.arrow_verts, self.arrow_inds = self._build_arrow(
             shaft_radius, shaft_height, head_radius, head_height, segments
         )
 
-        # The number of additional dynamic arrows to support (beyond the 3 basis arrows)
-        self.channels = channels
+        self._text_renderer = text_renderer
+        self._renderer = renderer
+        self.values = {}
+    
+    def load_shaders(self, shader_manager):
+        shader_manager.load_shader(
+            "dynamic_arrow",
+            vertex_path="vizcore/widget/shaders/dynamic_arrow.vert",
+            fragment_path="vizcore/widget/shaders/arrow.frag"
+        )
+        shader_manager.load_shader(
+            "static_arrow",
+            vertex_path="vizcore/widget/shaders/static_arrow.vert",
+            fragment_path="vizcore/widget/shaders/arrow.frag"
+        )
+    
+    
+    def update(self):
+        # Pull latest values from the data bus for each signal and update both local and GPU buffer in one pass
+        if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
+            transforms = []
+            local_z = np.array([0, 0, 1], dtype='f4')
+            
+            for i, signalName in enumerate(self.signal_names):
+                value = self.data_bus.latest(signalName)
+                if value is not None:
+                    latest = np.asarray(value, dtype='f4')
+                    self._local[signalName].push(latest)
+                else:
+                    latest = np.zeros(3, dtype='f4')
+                    self._local[signalName].push(latest)
+                idx = self.signal_to_index[signalName]
+                self.signal_buffer[idx] = latest  # Update the correct row directly
+                
+                # Calculate the transform matrix for this signal instance
+                mag = np.float32(np.linalg.norm(latest))
+                rot_mat = np.eye(3, dtype='f4')
+                if mag > 1e-8:
+                    val_normalized = latest / mag
+                    rot_mat = rotation_matrix_from_vectors(local_z, val_normalized).astype('f4')
+                
+                # GLSL mat3 expects column-major order (transpose before flatten)
+                rot_flat = rot_mat.T.flatten()
+                instance_entry = np.concatenate([rot_flat, [mag]], dtype='f4')
+                transforms.append(instance_entry)
+                
+            # Write the entire buffer to the GPU once
+            self._vbos['externalSignals'].write(self.signal_buffer.tobytes())
+            if transforms:
+                self._vbos['signalTransforms'].write(np.concatenate(transforms).tobytes())
 
-        # The names of the signals attached to this frame, in order of their corresponding dynamic arrows
-        self.signal_names = []
-
-        self._default_buffer_size = buffer_size
+        angles = []
+        for angleName in ['eulerian_x', 'eulerian_y', 'eulerian_z']:
+            angle = self.data_bus.latest(angleName)
+            if angle is not None:
+                self._local[angleName].push(angle)
+            else:
+                raise ValueError(f"Missing data for Euler angle '{angleName}'. Ensure the data bus is providing this signal.")
+            angles.append(self._local[angleName].latest())
+        self.eulerian_buffer[:] = angles
+        self._vbos['eulerian_angles'].write(self.eulerian_buffer.tobytes())
+                
+                
+    def bind_external_signal(self, data_bus, signal:list):
+        """
+        Bind the signal name and the size of its data to the local storage of the widget. 
+        """
+        if hasattr(self, 'signal_names'):
+            for sig in signal:
+                if sig not in self.signal_names:
+                    self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z)
+                    self.signal_names.append(sig)  # Add signal name to list of attached signals
+                    
+                    if not hasattr(self, 'signal_to_index'):
+                        self.signal_to_index = {}
+                    
+                    self.signal_to_index[sig] = len(self.signal_names) - 1  # Map signal name to its index in the buffer
+                
+                else:
+                    print(f"Signal '{sig}' is already bound to this widget. Press enter to overwrite.")
+                    input("Press Enter to continue...")  # Pause to let user read message
+                    self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z), overwriting existing buffer
+        else:
+            raise AttributeError("Widget does not have 'signal_names' attribute. Ensure the widget is initialized with a list to store signal names.")
+        
+        # Initialize Euler angle buffers
+        for angleName in ['eulerian_x', 'eulerian_y', 'eulerian_z']:
+            if angleName not in self._local:
+                self._local[angleName] = RingBuffer(1)
+        
         self.data_bus = data_bus
 
-    def _build_verts(self):
-    
-        # Bake each arrow's orientation into its vertices at CPU time
-        x_verts = self._transform(self.arrow_verts, self._rot_y(-np.pi / 2))  # +Z → +X
-        y_verts = self._transform(self.arrow_verts, self._rot_x( np.pi / 2))  # +Z → +Y
-        z_verts = self.arrow_verts.copy()                                       # +Z stays
-
-        if len(self.values) > 0:
-            add_verts = {signal: (self.arrow_verts.copy(), np.random.rand(1,3)) for signal in self.values.keys()}
-        else:
-            add_verts = {}
-
-        # Interleave color per vertex
-        x_colored = self._colorize(x_verts, self.RED)    # red
-        y_colored = self._colorize(y_verts, self.GREEN)   # green
-        z_colored = self._colorize(z_verts, self.BLUE)   # blue
-        add_colored = {signal: self._colorize(verts, color) for signal, (verts, color) in add_verts.items()}
-
-        self.colors = {
-            "X": self.RED,
-            "Y": self.GREEN,
-            "Z": self.BLUE,
-        }
-        self.colors.update({signal: color for signal, (verts, color) in add_verts.items()})
-
-        print(self.colors)
+    def bind_renderer(self, renderer):
+        """Binds all the external signals to the renderer and pre-allocates GPU buffers."""
+        self._renderer = renderer
+        self.signal_to_index = {sig: i for i, sig in enumerate(self.signal_names)}
         
-
-        n_x = len(x_verts)
-        n_y = len(y_verts)
-        n_v = len(add_colored)
-
-        basis_verts = np.concatenate([x_colored, y_colored, z_colored], axis=0)
-        basis_inds = np.concatenate([
-            self.arrow_inds,
-            self.arrow_inds + n_x,
-            self.arrow_inds + n_x + n_y
-        ], axis=0).astype(np.uint32).ravel()
-
-        # Static buffers for basis arrows (X,Y,Z) -- They won't change, so we can upload once and reuse
-        basis_vbo = self.ctx.buffer(basis_verts.astype("f4").tobytes())
-        basis_ibo = self.ctx.buffer(basis_inds.tobytes())
-
-        signal_verts = np.concatenate(list(add_colored.values()), axis=0)
-        signal_inds = np.concatenate([
-            self.arrow_inds + (i * len(self.arrow_verts)) for i in range(n_v)
-        ], axis=0).astype(np.uint32).ravel()
-
-        # Static buffers for dynamic arrows -- The vertex data (geometry + color) is static, but the instance data (rotation + scale) will be updated each frame
-        signal_vbo = self.ctx.buffer(signal_verts.astype("f4").tobytes())
-        signal_ibo = self.ctx.buffer(signal_inds.tobytes())
-
-        # Dynamic buffer data for instance transformations (rotation + scale) -- Will be updated each frame based on the latest signal values
-        self.rotation_matrices = np.tile(np.eye(3, dtype='f4'), (n_v, 1, 1))  # shape (num_instances, 3, 3)
-        self.scale_vectors = np.ones((n_v, 3), dtype='f4')  # shape (num_instances, 3)
-        # normalize the scale_vectors row wise
-        self.scale_vectors = np.linalg.norm(self.scale_vectors, axis=1, keepdims=True) + 1e-8
-
-        self.data_bus.register_signal("rotation_matrices", buffer_size=self.rotation_matrices.reshape(-1, 9).tobytes().__len__())
-        self.data_bus.register_signal("scale_vectors", buffer_size=self.scale_vectors.tobytes().__len__())
-
-        # Define programs
-        self._static_prog = self.ctx.program(
-            vertex_shader=self.STATIC_VERT,
-            fragment_shader=self.FRAG_SHADER,
-        )
-
-        self._dynamic_prog = self.ctx.program(
-            vertex_shader=self.DYNAMIC_VERT,
-            fragment_shader=self.FRAG_SHADER,
-        )
-
+        # Pre-allocate buffer based on self.channels if external signals are not yet bound
+        num_signals = max(self.channels, len(self.signal_names))
         
+        self.signal_buffer = np.zeros((num_signals, 3), dtype='f4')
+        buffer_size = self.signal_buffer.nbytes if self.signal_buffer.nbytes > 0 else 12
+        self._vbos['externalSignals'] = renderer.ctx.buffer(reserve=buffer_size)
+        if self.signal_buffer.nbytes > 0:
+            self._vbos['externalSignals'].write(self.signal_buffer.tobytes())
+            
+        # Per-instance matrix buffer (10 floats per dynamic arrow: 9 for mat3, 1 for float)
+        transform_size = num_signals * 10 * 4 # 10 floats * 4 bytes
+        self._vbos['signalTransforms'] = renderer.ctx.buffer(reserve=max(transform_size, 40))
 
-        print(f"Shape of rotation_matrices: {self.rotation_matrices.shape}, scale_vectors: {self.scale_vectors.shape}")
-        
-        self.buffers = {
-            'rotation': self.ctx.buffer(reserve=self.rotation_matrices.reshape(-1, 9).nbytes),
-            'scaling': self.ctx.buffer(reserve=self.scale_vectors.astype('f4').tobytes().__len__()),
-        }
+        self.eulerian_buffer = np.zeros(3, dtype='f4')
+        buffer_size = self.eulerian_buffer.nbytes if self.eulerian_buffer.nbytes > 0 else 12
+        self._vbos['eulerian_angles'] = renderer.ctx.buffer(reserve=buffer_size)
+        if self.eulerian_buffer.nbytes > 0:
+            self._vbos['eulerian_angles'].write(self.eulerian_buffer.tobytes())
 
-        self.update_ctx_buffers()  # initialize rotation and scale buffers
+        self.load_shaders(renderer.shader_manager)
 
-        self._vao_basis = self.ctx.vertex_array(
-            self._static_prog,
-            [(basis_vbo, "3f 3f", "in_vert", "in_color")],
-            index_buffer=basis_ibo,
-        )
+    def bind_camera(self, camera):
+        self.camera = camera
 
-        self._vao_signal = self.ctx.vertex_array(
-            self._dynamic_prog,
-            [
-                (signal_vbo, "3f 3f", "in_vert", "in_color"),
-                (self.buffers['rotation'], "9f/i", "in_rotation"),
-                (self.buffers['scaling'], "1f/i", "in_scale"),
-            ],
-            index_buffer=signal_ibo,
-        )
-
-    def update_ctx_buffers(self):
-        self.buffers['rotation'].write(self.rotation_matrices.reshape(-1, 9).astype('f4').tobytes())
-        self.buffers['scaling'].write(self.scale_vectors.astype('f4').tobytes())
-
-    def attach_signal(self, bus, signal):
-        if signal not in bus.signals:
-            raise ValueError(f"Signal '{signal}' not found in data bus")
-        elif signal in self.signal_names:
-            pass
-        else:
-            self.signal_names.append(signal)
-            bus.register_signal(signal)
-
-    def update(self, data=None):
-        # Update the gpu buffers with the latest data from the bus for each attached signal
-        if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
-            for i, name in enumerate(self.signal_names):
-                value = self.data_bus.latest(name)
-                if value is not None:
-                    self.buffers[i].push(value)
-                # Only update self.values if buffer has valid data
-                self.values[i] = np.array(self.buffers[i].history(), dtype='f4')
-
-    def render(self, model: np.ndarray, view: np.ndarray, projection: np.ndarray):
+    # Need to add camera class for the different things
+    def draw(self, renderer=None):
         """
         Draw the frame + axis labels.
         model, view, projection: 4x4 float32 numpy arrays (row-major).
         """
-        mvp = projection @ view @ model
+        x,y,z = self._local['eulerian_x'].latest(), self._local['eulerian_y'].latest(), self._local['eulerian_z'].latest()
+        model = rotation_z(z) @ rotation_y(y) @ rotation_x(x)  # Apply rotations in ZYX order (yaw, pitch, roll) --- CONVENTION
+        mvp = self.camera.projection @ self.camera.view @ model
 
-        local_z = np.array([0, 0, 1], dtype='f4')  # Arrow points along +Z in local space
-        for i, (name, val) in enumerate(self.values.items()):
-            val_normalized = val / (np.linalg.norm(val) + 1e-8)
-            rot_mat = rotation_matrix_from_vectors(local_z, val_normalized)
-            scal = np.linalg.norm(val)  # Magnitude, not normalized direction
-            self.scale = scal.astype('f4')
-            self.rotation_matrices[i] = rot_mat.astype('f4')
+        packed_mvp = mvp.astype('f4').T.tobytes()
+        renderer.set_uniform("static_arrow", "mvp", packed_mvp)
+        renderer.set_uniform("dynamic_arrow", "mvp", packed_mvp)
 
-        self.update_ctx_buffers()  # upload any changes to rotation/scale
-
-        self._static_prog["mvp"].write(mvp.astype("f4").T.tobytes())
-        self._dynamic_prog["mvp"].write(mvp.astype("f4").T.tobytes())
-
-        self._vao_basis.render(moderngl.TRIANGLES)
-        self._vao_signal.render(moderngl.TRIANGLES, instances=len(self.signal_names)) 
+        renderer.draw("static_arrow", [(self._vbos["basisVerts"], "3f 3f", "in_vert", "in_color")], self._vbos["basisIdx"])  # Ensure static shader is compiled before creating VAO
+        
+        # Only draw dynamic arrows if we actually created the VBOs
+        if "signalVerts" in self._vbos and "signalIdx" in self._vbos and len(self.signal_names) > 0:
+            content = [
+                (self._vbos["signalVerts"], "3f 3f", "in_vert", "in_color"),
+                (self._vbos["signalTransforms"], "9f 1f /i", "in_rotation", "in_scale")
+            ]
+            # Draw shared dynamic geometry N times via instancing
+            renderer.draw("dynamic_arrow", content, self._vbos["signalIdx"], instances=len(self.signal_names))
 
         if self._text_renderer is not None:
             # Axis tip positions in world space = model * tip_point
@@ -235,7 +235,7 @@ class KinematicFrame:
             z_tip = world_tip_dir([0,-1,0], tip_len)
             y_tip = world_tip_dir([0,0,1], tip_len)
             
-            
+            view, projection = self.camera.view, self.camera.projection
 
             self._text_renderer.render_label("X", x_tip, view, projection,
                                             color=self.RED,
@@ -255,11 +255,74 @@ class KinematicFrame:
                 self._text_renderer.render_label(signal[0].upper(), tip, view, projection,
                                             color=color,
                                             scale=self._label_scale)
-                                                 
 
+    def _build_verts(self):
+    
+        # Bake each arrow's orientation into its vertices at CPU time
+        x_verts = self._transform(self.arrow_verts, rotation_y(-np.pi / 2))  # +Z → +X
+        y_verts = self._transform(self.arrow_verts, rotation_x( np.pi / 2))  # +Z → +Y
+        z_verts = self.arrow_verts.copy()                                       # +Z stays
 
+        # Use signal_names (the names of bound signals) as the source of truth for extra arrows
+        if len(self.signal_names) > 0:
+            add_verts = {signal: (self.arrow_verts.copy(), self.YELLOW) for signal in self.signal_names}
+        else:
+            add_verts = {}
 
+        # Interleave color per vertex
+        x_colored = self._colorize(x_verts, self.RED)    # red
+        y_colored = self._colorize(y_verts, self.GREEN)   # green
+        z_colored = self._colorize(z_verts, self.BLUE)   # blue
+        add_colored = {signal: self._colorize(verts, color) for signal, (verts, color) in add_verts.items()}
 
+        self.colors = {
+            "X": self.RED,
+            "Y": self.GREEN,
+            "Z": self.BLUE,
+        }
+        self.colors.update({signal: color for signal, (verts, color) in add_verts.items()})
+        
+        n_x = len(x_verts)
+        n_y = len(y_verts)
+        n_v = len(add_colored)
+
+        basis_verts = np.concatenate([x_colored, y_colored, z_colored], axis=0)
+        basis_inds = np.concatenate([
+            self.arrow_inds,
+            self.arrow_inds + n_x,
+            self.arrow_inds + n_x + n_y
+        ], axis=0).astype(np.uint32).ravel()
+
+        # Static buffers for basis arrows (X,Y,Z) -- They won't change, so we can upload once and reuse
+        if self._renderer is not None:
+            self._vbos['basisVerts'] = self._renderer.ctx.buffer(basis_verts.tobytes())
+            self._vbos['basisIdx'] = self._renderer.ctx.buffer(basis_inds.tobytes())
+        else:
+            self._vbos['basisVerts'] = basis_verts
+            self._vbos['basisIdx'] = basis_inds
+        
+        if len(add_colored) > 0:
+            signal_verts = np.concatenate(list(add_colored.values()), axis=0)
+            signal_inds = np.concatenate([
+                self.arrow_inds + (i * len(self.arrow_verts)) for i in range(n_v)
+            ], axis=0).astype(np.uint32).ravel()
+        else:
+            signal_verts = np.zeros((0, 6), dtype='f4')
+            signal_inds = np.zeros(0, dtype='u4')
+
+        # Static buffers for dynamic arrows -- The vertex data (geometry + color) is static, but the instance data (rotation + scale) will be updated each frame
+        if self._renderer is not None:
+            self._vbos["signalVerts"] = self._renderer.ctx.buffer(reserve=max(signal_verts.nbytes, 12))
+            if signal_verts.nbytes > 0:
+                self._vbos["signalVerts"].write(signal_verts.tobytes())
+            
+            self._vbos["signalIdx"] = self._renderer.ctx.buffer(reserve=max(signal_inds.nbytes, 12))
+            if signal_inds.nbytes > 0:
+                self._vbos["signalIdx"].write(signal_inds.tobytes())
+        else:
+            self._vbos["signalVerts"] = signal_verts
+            self._vbos["signalIdx"] = signal_inds
+        
 
 
     # ── private helpers ──────────────────────────────────────────
@@ -287,79 +350,3 @@ class KinematicFrame:
     def _colorize(verts, color):
         colors = np.tile(color, (len(verts), 1)).astype(np.float32)
         return np.concatenate([verts, colors], axis=1)
-
-    @staticmethod
-    def _rot_x(a):
-        c, s = np.cos(a), np.sin(a)
-        return np.array([[1,0,0,0],[0,c,-s,0],[0,s,c,0],[0,0,0,1]], dtype=np.float64)
-
-    @staticmethod
-    def _rot_y(a):
-        c, s = np.cos(a), np.sin(a)
-        return np.array([[c,0,s,0],[0,1,0,0],[-s,0,c,0],[0,0,0,1]], dtype=np.float64)
-
-
-
-# ─────────────────────────────────────────────
-#  App
-# ─────────────────────────────────────────────
-if __name__ == "__main__":
-    width, height = 800, 600
-
-    window = pyglet.window.Window(width, height, "Orientation Frame")
-    window.switch_to()
-
-    ctx = moderngl.create_context()
-    ctx.enable(moderngl.DEPTH_TEST)
-    ctx.viewport = (0, 0, width, height)
-
-    frame = KinematicFrame(ctx,
-        shaft_radius=0.04,
-        shaft_height=0.6,
-        head_radius=0.10,
-        head_height=0.2,
-        segments=32,
-        channels=1,
-        text_renderer=None,  # set to TextRenderer instance if you want labels
-    )
-
-    frame.signal_names = ["dynamic_signal"]  # example signal name for dynamic arrow
-
-    camera_tilt  = rotation_x(np.radians(25))
-    camera_trans = translation(0, -0.3, -3)
-    view         = camera_trans @ camera_tilt
-    projection   = perspective(np.radians(60), width / height, 0.1, 100)
-
-    mod = rotation_x(np.radians(45)) @ rotation_y(np.radians(30))  # example model transform
-
-    mod = np.eye(4, dtype=np.float32)  # identity model matrix
-
-    vel = np.array([-0.5, 0.5, 0.0], dtype=np.float32)
-    a = 0.01  # acceleration magnitude
-    frame.values = {"dynamic_signal": vel}  # initialize with zero velocity
-
-    frame._build_verts()  # build geometry and upload to GPU
-
-    anglex = 0.0
-    angley = 0.0
-
-    @window.event
-    def on_draw():
-        global vel, anglex, angley
-        ctx.clear(0.1, 0.1, 0.1)
-
-        anglex += 0.01
-        angley += 0.015
-
-        mod = rotation_x(anglex) @ rotation_y(angley)
-
-        # frame.values['dynamic_signal'] += np.array([-a,0,a]).astype(np.float32)  # random walk velocity
-        # print(f"Current velocity: {frame.values['dynamic_signal']}")
-
-        frame.render(mod, view, projection)
-
-    @window.event
-    def on_resize(w, h):
-        ctx.viewport = (0, 0, w, h)
-
-    pyglet.app.run()

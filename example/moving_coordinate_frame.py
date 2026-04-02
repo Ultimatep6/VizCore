@@ -1,5 +1,5 @@
 from vizcore.widget.kinematicFrame import KinematicFrame
-from vizcore.text.text import TextAtlas, TextRenderer
+from vizcore.text.fontAtlas import TextAtlas, TextRenderer
 from vizcore.utils import rotation_x, rotation_y, translation, perspective
 
 import numpy as np

@@ -6,9 +6,15 @@ class RingBuffer:
         self.count = 0
 
     def push(self, value):
-        self.buffer[self.index] = value
-        self.index = (self.index + 1) % self.size
-        self.count = min(self.count + 1, self.size)
+        if isinstance(value, list):
+            for v in value:
+                self.buffer[self.index] = v
+                self.index = (self.index + 1) % self.size
+                self.count = min(self.count + 1, self.size)
+        else:
+            self.buffer[self.index] = value
+            self.index = (self.index + 1) % self.size
+            self.count = min(self.count + 1, self.size)
 
     def clear(self):
         self.buffer = [None] * self.size
@@ -31,11 +37,15 @@ class RingBuffer:
             return None
         return self.buffer[(self.index - 1) % self.size]
 
-    def history(self):
+    def history(self, N=None):
+        """
+        Return the N most recent values in the buffer, ordered from newest to oldest. If N is None, return all available data.
+        """
         if self.count == 0:
             return []
-        if self.count < self.size:
-            return self.buffer[:self.count]
-        # Return in correct order: oldest to newest
-        return self.buffer[self.index:] + self.buffer[:self.index]
-    
+        if N is None or N > self.count:
+            N = self.count
+        # Compute the start index for the last N elements
+        start = (self.index - N) % self.size
+        return [self.buffer[(start + i) % self.size] for i in range(N)]
+

@@ -5,7 +5,7 @@ from rectpack import newPacker, MaxRectsBssf
 import moderngl
 import pyglet
 
-class TextAtlas:
+class FontAtlas:
     def __init__(self, font_path, font_size=48, atlas_size=2048):
 
         self.font_path = font_path
