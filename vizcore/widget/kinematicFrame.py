@@ -76,6 +76,15 @@ class KinematicFrame(BaseWidget):
         )
     
     
+    def accepts_signal(self, data_bus, signal_name):
+        # Kinematic frame only accepts 3D signals
+        latest_val = data_bus.latest(signal_name)
+        if latest_val is not None:
+            arr_val = np.asarray(latest_val)
+            if arr_val.shape == (3,):
+                return True
+        return False
+
     def update(self):
         # Pull latest values from the data bus for each signal and update both local and GPU buffer in one pass
         if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
@@ -105,6 +114,9 @@ class KinematicFrame(BaseWidget):
                 instance_entry = np.concatenate([rot_flat, [mag]], dtype='f4')
                 transforms.append(instance_entry)
                 
+                # Store actual output value mapped explicitly for the text renderer label
+                self.values[signalName] = latest
+                
             # Write the entire buffer to the GPU once
             self._vbos['externalSignals'].write(self.signal_buffer.tobytes())
             if transforms:
@@ -128,6 +140,14 @@ class KinematicFrame(BaseWidget):
         """
         if hasattr(self, 'signal_names'):
             for sig in signal:
+                # Type checking: Ensure target signal actually contains required dimensionality (3D for vectors)
+                latest_val = data_bus.latest(sig)
+                if latest_val is not None:
+                    arr_val = np.asarray(latest_val)
+                    if arr_val.shape != (3,):
+                        print(f"Warning: KinematicFrame requires 3D signals! Signal '{sig}' is shape {arr_val.shape}. Ignored.")
+                        continue # Skip binding incompatible signals
+
                 if sig not in self.signal_names:
                     self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z)
                     self.signal_names.append(sig)  # Add signal name to list of attached signals
@@ -151,10 +171,18 @@ class KinematicFrame(BaseWidget):
         
         self.data_bus = data_bus
 
+        # Re-bind renderer if it was already bound to update VBO allocations
+        if hasattr(self, '_renderer') and self._renderer is not None:
+            self.bind_renderer(self._renderer)
+
     def bind_renderer(self, renderer):
         """Binds all the external signals to the renderer and pre-allocates GPU buffers."""
         self._renderer = renderer
+        self._text_renderer = getattr(renderer, 'text_renderer', None)
         self.signal_to_index = {sig: i for i, sig in enumerate(self.signal_names)}
+        
+        # Build static geometry buffers immediately when renderer is attached
+        self._build_verts()
         
         # Pre-allocate buffer based on self.channels if external signals are not yet bound
         num_signals = max(self.channels, len(self.signal_names))
@@ -248,7 +276,7 @@ class KinematicFrame(BaseWidget):
                                             scale=self._label_scale)
             
             for signal, val in self.values.items():
-                tip = -world_tip_dir(val, tip_len)
+                tip = world_tip_dir(val, tip_len)
                 color = self.colors.get(signal, self.YELLOW)
                 if isinstance(color, np.ndarray):
                     color = color.flatten()
