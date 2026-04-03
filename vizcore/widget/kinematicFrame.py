@@ -76,6 +76,15 @@ class KinematicFrame(BaseWidget):
         )
     
     
+    def accepts_signal(self, data_bus, signal_name):
+        # Kinematic frame only accepts 3D signals
+        latest_val = data_bus.latest(signal_name)
+        if latest_val is not None:
+            arr_val = np.asarray(latest_val)
+            if arr_val.shape == (3,):
+                return True
+        return False
+
     def update(self):
         # Pull latest values from the data bus for each signal and update both local and GPU buffer in one pass
         if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
@@ -138,8 +147,6 @@ class KinematicFrame(BaseWidget):
                     self.signal_to_index[sig] = len(self.signal_names) - 1  # Map signal name to its index in the buffer
                 
                 else:
-                    print(f"Signal '{sig}' is already bound to this widget. Press enter to overwrite.")
-                    input("Press Enter to continue...")  # Pause to let user read message
                     self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z), overwriting existing buffer
         else:
             raise AttributeError("Widget does not have 'signal_names' attribute. Ensure the widget is initialized with a list to store signal names.")
@@ -151,10 +158,18 @@ class KinematicFrame(BaseWidget):
         
         self.data_bus = data_bus
 
+        # Re-bind renderer if it was already bound to update VBO allocations
+        if hasattr(self, '_renderer') and self._renderer is not None:
+            self.bind_renderer(self._renderer)
+
     def bind_renderer(self, renderer):
         """Binds all the external signals to the renderer and pre-allocates GPU buffers."""
         self._renderer = renderer
+        self._text_renderer = getattr(renderer, 'text_renderer', None)
         self.signal_to_index = {sig: i for i, sig in enumerate(self.signal_names)}
+        
+        # Build static geometry buffers immediately when renderer is attached
+        self._build_verts()
         
         # Pre-allocate buffer based on self.channels if external signals are not yet bound
         num_signals = max(self.channels, len(self.signal_names))
@@ -247,8 +262,9 @@ class KinematicFrame(BaseWidget):
                                             color=self.GREEN,
                                             scale=self._label_scale)
             
-            for signal, val in self.values.items():
-                tip = -world_tip_dir(val, tip_len)
+            for signal in self.signal_names:
+                val = self._local[signal].latest()
+                tip = world_tip_dir(val, tip_len)
                 color = self.colors.get(signal, self.YELLOW)
                 if isinstance(color, np.ndarray):
                     color = color.flatten()
