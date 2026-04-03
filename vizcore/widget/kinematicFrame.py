@@ -138,7 +138,11 @@ class KinematicFrame(BaseWidget):
         if hasattr(self, 'signal_names'):
             for sig in signal:
                 if sig not in self.signal_names:
-                    self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z)
+                    # Get the latest value to determine dimensionality dynamically
+                    val = data_bus.latest(sig)
+                    size = np.asarray(val).size if val is not None else 3
+                    
+                    self._local[sig] = RingBuffer(size)  # Create local buffer matching signal size
                     self.signal_names.append(sig)  # Add signal name to list of attached signals
                     
                     if not hasattr(self, 'signal_to_index'):
@@ -147,7 +151,9 @@ class KinematicFrame(BaseWidget):
                     self.signal_to_index[sig] = len(self.signal_names) - 1  # Map signal name to its index in the buffer
                 
                 else:
-                    self._local[sig] = RingBuffer(3)  # Create local buffer for this signal (x,y,z), overwriting existing buffer
+                    val = data_bus.latest(sig)
+                    size = np.asarray(val).size if val is not None else 3
+                    self._local[sig] = RingBuffer(size)  # Overwrite with correct size
         else:
             raise AttributeError("Widget does not have 'signal_names' attribute. Ensure the widget is initialized with a list to store signal names.")
         
