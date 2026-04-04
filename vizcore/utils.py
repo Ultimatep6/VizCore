@@ -45,3 +45,31 @@ def rotation_matrix_from_vectors(a, b):
                      [-v[1], v[0], 0]])
     R = np.eye(3) + kmat + kmat @ kmat * ((1 - c) / (s ** 2))
     return R.astype('f4')
+
+
+def orthographic(left, right, bottom, top, near=-1.0, far=1.0):
+    """
+    Creates a 2D Orthographic projection matrix designed for pixel-space mapping.
+    Useful for rendering UI boundaries, text, and flat orthographic widgets directly
+    where 1 unit = 1 pixel.
+    """
+    return np.array([
+        [2.0 / (right - left), 0.0, 0.0, 0.0],
+        [0.0, 2.0 / (top - bottom), 0.0, 0.0],
+        [0.0, 0.0, -2.0 / (far - near), 0.0],
+        [-(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0]
+    ], dtype="f4")
+
+
+def pixel_to_ndc(x, y, width, height):
+    """
+    Converts literal pixel coordinates (0 to width, 0 to height) 
+    into OpenGL Normalized Device Coordinates (-1.0 to +1.0).
+    Origin (0,0) for the screen is assumed to be the bottom-left corner.
+    
+    Returns:
+        tuple: (x_ndc, y_ndc) mapped accurately for GL shaders.
+    """
+    x_ndc = (x / width) * 2.0 - 1.0
+    y_ndc = (y / height) * 2.0 - 1.0
+    return x_ndc, y_ndc

@@ -5,7 +5,7 @@ from vizcore.bus.ring_buffer import RingBuffer
 from vizcore.widget.baseWidget import BaseWidget
 
 import numpy as np
-# import pyglet
+import pyglet
 # import moderngl
 
 
@@ -137,23 +137,23 @@ class KinematicFrame(BaseWidget):
         """
         if hasattr(self, 'signal_names'):
             for sig in signal:
-                if sig not in self.signal_names:
-                    # Get the latest value to determine dimensionality dynamically
+                if data_bus.latest(sig) is not None:
                     val = data_bus.latest(sig)
-                    size = np.asarray(val).size if val is not None else 3
-                    
-                    self._local[sig] = RingBuffer(size)  # Create local buffer matching signal size
+                    size = np.asarray(val).size
+                else:
+                    raise ValueError(f"Signal '{sig}' has no data in the data bus. Ensure the signal is being pushed before binding.")
+                
+                if signal not in self.signal_names:
                     self.signal_names.append(sig)  # Add signal name to list of attached signals
-                    
+                
+                if self.accepts_signal(data_bus, sig):
+                    self._local[sig] = RingBuffer(size)  # Create local buffer matching signal size
+                        
                     if not hasattr(self, 'signal_to_index'):
                         self.signal_to_index = {}
-                    
+                        
                     self.signal_to_index[sig] = len(self.signal_names) - 1  # Map signal name to its index in the buffer
-                
-                else:
-                    val = data_bus.latest(sig)
-                    size = np.asarray(val).size if val is not None else 3
-                    self._local[sig] = RingBuffer(size)  # Overwrite with correct size
+
         else:
             raise AttributeError("Widget does not have 'signal_names' attribute. Ensure the widget is initialized with a list to store signal names.")
         
@@ -372,3 +372,25 @@ class KinematicFrame(BaseWidget):
     def _colorize(verts, color):
         colors = np.tile(color, (len(verts), 1)).astype(np.float32)
         return np.concatenate([verts, colors], axis=1)
+
+if __name__ == "__main__":
+    def mock_update(dt):
+        t = pyglet.clock.get_default().time()
+        tester.push_data("eulerian_x", t * 0.5)
+        tester.push_data("eulerian_y", t * 0.3)
+        tester.push_data("eulerian_z", t * 0.2)
+
+    from vizcore.widget_tester import WidgetTester
+    tester = WidgetTester()
+
+    # Pre-seed the data bus so bind_external_signal doesn't fail on missing data
+    tester.push_data("eulerian_x", 0.0)
+    tester.push_data("eulerian_y", 0.0)
+    tester.push_data("eulerian_z", 0.0)
+    tester.push_data("velocity", [0.0, 0.0, 0.0])
+    
+    frame = KinematicFrame()
+    # Pass 'velocity' as a dynamic 3D arrow signal. eulerian_x/y/z are bound implicitly inside bind_external_signal
+    frame.bind_external_signal(tester.data_bus, ["velocity"])
+    tester.set_widget(frame)
+    tester.run(mock_update_fn=mock_update)

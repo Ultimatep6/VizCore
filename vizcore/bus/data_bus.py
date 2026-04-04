@@ -25,7 +25,7 @@ class DataBus:
         """Register a new signal with a ring buffer if it doesn't already exist."""
         with self._lock:
             if name not in self._signals:
-                size = buffer_size if buffer_size is not None else self._buffer_size
+                size = ImportError if buffer_size is not None else self._buffer_size
                 self._signals[name] = RingBuffer(size)
 
     def push(self, name, value):

@@ -104,7 +104,7 @@ class TextRenderer:
         )
 
 
-    def render_text(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0)):
+    def render_text(self, text, x, y, color=(1.0, 1.0, 1.0, 1.0), scale=1.0):
         # Build vertex data for all characters
         verts = []
         cursor_x = x
@@ -123,6 +123,10 @@ class TextRenderer:
             gw, gh = char_info['size']
             ox, oy = char_info['bearing']
             
+            # Apply scale to geometry
+            gw, gh = gw * scale, gh * scale
+            ox, oy = ox * scale, oy * scale
+            
             # Calculate quad position
             x0 = cursor_x + ox
             y0 = y - oy  # Subtract bearing to position relative to baseline
@@ -139,7 +143,7 @@ class TextRenderer:
                 x0, y1, u0, v1,
             ]
             
-            cursor_x += char_info['advance']
+            cursor_x += char_info['advance'] * scale
         
             if not verts:
                 return
@@ -149,8 +153,10 @@ class TextRenderer:
         vbo = ctx.buffer(verts_array.tobytes())
         vao = ctx.vertex_array(prog, [(vbo, '2f 2f', 'in_vert', 'in_uv')])
 
-        width, height = self.window.size
-        projection = np.array([
+        # Get dynamic window dimensions from active viewport instead of static wrapper
+        _, _, width, height = ctx.viewport
+        
+        mvp = np.array([
             [2.0/width,  0.0,         0.0, -1.0],
             [0.0,       -2.0/height,  0.0,  1.0],  # Negative to flip Y
             [0.0,        0.0,        -1.0,  0.0],
@@ -166,7 +172,7 @@ class TextRenderer:
         else:
             raise ValueError("Color must be a tuple of 3 (RGB) or 4 (RGBA) floats in range [0, 1]")
         
-        prog['u_projection'].write(projection.tobytes())
+        prog['mvp'].write(mvp.astype('f4').tobytes())
 
         
         # Bind texture to texture unit 0
@@ -319,42 +325,42 @@ def render_with_freetype(char, face):
 
 
 # Example usage
-if __name__ == "__main__":
-    width, height = 800, 600
+# if __name__ == "__main__":
+#     width, height = 800, 600
     
-    # Create pyglet window FIRST (this creates the OpenGL context)
-    window = pyglet.window.Window(width, height, "Text Test")
+#     # Create pyglet window FIRST (this creates the OpenGL context)
+#     window = pyglet.window.Window(width, height, "Text Test")
     
-    # Get the ModernGL context from pyglet's context
-    ctx = moderngl.create_context()
+#     # Get the ModernGL context from pyglet's context
+#     ctx = moderngl.create_context()
     
-    # Create a simple window wrapper object
-    window_wrapper = type('Window', (), {
-        'ctx': ctx, 
-        'size': (width, height),
-        'texture': None  # Will be set by TextRenderer
-    })()
+#     # Create a simple window wrapper object
+#     window_wrapper = type('Window', (), {
+#         'ctx': ctx, 
+#         'size': (width, height),
+#         'texture': None  # Will be set by TextRenderer
+#     })()
     
-    # Create font atlas
-    print("Creating font atlas...")
-    atlas = TextAtlas(window=window_wrapper, font_path="vizcore/text/data/cmunbi.ttf", font_size=48)
-    print(f"Atlas created with {len(atlas.characters)} characters")
+#     # Create font atlas
+#     print("Creating font atlas...")
+#     atlas = TextAtlas(window=window_wrapper, font_path="vizcore/text/data/cmunbi.ttf", font_size=48)
+#     print(f"Atlas created with {len(atlas.characters)} characters")
     
-    # Save atlas for debugging
-    atlas.atlas_image.save("font_atlas_debug.png")
-    print("Atlas saved to font_atlas_debug.png")
+#     # Save atlas for debugging
+#     atlas.atlas_image.save("font_atlas_debug.png")
+#     print("Atlas saved to font_atlas_debug.png")
     
-    # Create text renderer
-    text_renderer = TextRenderer(window=window_wrapper, atlas=atlas)
+#     # Create text renderer
+#     text_renderer = TextRenderer(window=window_wrapper, atlas=atlas)
     
     
 
-    @window.event
-    def on_draw():
-        window.clear()
-        ctx.clear(0.0, 0.0, 0.0, 1.0)
-        text_renderer.render_text("X", x=50, y=300, color=(1.0, 0.0, 0.0, 1.0))  # Render red "X"
+#     @window.event
+#     def on_draw():
+#         window.clear()
+#         ctx.clear(0.0, 0.0, 0.0, 1.0)
+#         text_renderer.render_text("X", x=50, y=300, color=(1.0, 0.0, 0.0, 1.0))  # Render red "X"
     
-    pyglet.app.run()
+#     pyglet.app.run()
 
 

@@ -29,7 +29,6 @@ class Renderer:
         vao = self.ctx.vertex_array(program, vao_content, index_buffer)
         vao.render(**kwargs)
 
-
     def set_uniform(self, shader_name, uniform_name, data):
         self.shader_manager.set_uniform(shader_name, uniform_name, data)
 
