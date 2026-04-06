@@ -6,7 +6,7 @@ from vizcore.widget.baseWidget import BaseWidget
 
 import numpy as np
 # import pyglet
-# import moderngl
+import moderngl
 
 
 # ─────────────────────────────────────────────

@@ -8,6 +8,7 @@ from vizcore.renderer.camera import Camera
 from vizcore.renderer.tile import TileManager
 from vizcore.bus.data_bus import DataBus
 from vizcore.widget.kinematicFrame import KinematicFrame
+from vizcore.widget.linePlot import LinePlot
 from vizcore.simulation.simulation import BaseSimulation
 
 
@@ -43,6 +44,9 @@ class Window:
             fragment_path="vizcore/renderer/shaders/ui.frag"
         )
 
+        self.dragging_border = None
+        self.selected_tiles = set()
+
         self._init_ui_renderer()
 
         self.bind_events()
@@ -54,7 +58,11 @@ class Window:
         self.add_widget_label = pyglet.text.Label('Add Widget >', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
         self.remove_widget_label = pyglet.text.Label('Remove Widget', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
         self.add_signal_label = pyglet.text.Label('Attach Signal >', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
+        self.merge_selected_label = pyglet.text.Label('Merge Selected', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
+        
         self.kinematic_frame_label = pyglet.text.Label('Kinematic Frame', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
+        self.line_plot_label = pyglet.text.Label('Line Plot', color=(255, 255, 255, 255), anchor_y='center', font_size=10)
+        self.widget_labels = [self.kinematic_frame_label, self.line_plot_label]
         
         # Dynamic signal labels created on-demand when submenu is active
         self.signal_labels = []
@@ -91,14 +99,20 @@ class Window:
             draw_w = max(1, tile.width - 2 * margin)
             draw_h = max(1, tile.height - 2 * margin)
 
-            color = (0.1, 0.1, 0.1) if tile.widget is not None else ((0.2, 0.6, 0.9) if i != self.tile_manager.focus_index else (1.0, 0.3, 0.3))
+            if i in self.selected_tiles:
+                color = (0.3, 0.4, 0.1) if tile.widget is None else (0.2, 0.3, 0.1) # Distinct greenish-colored selection
+            else:
+                color = (0.1, 0.1, 0.1) if tile.widget is not None else ((0.2, 0.6, 0.9) if i != self.tile_manager.focus_index else (1.0, 0.3, 0.3))
 
             self._renderer.set_uniform("ui", "u_pos", (draw_x, draw_y))
             self._renderer.set_uniform("ui", "u_size", (draw_w, draw_h))
             self._renderer.set_uniform("ui", "u_color", color)
             self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
             
-            outline_color = (1.0, 1.0, 1.0) if i != self.tile_manager.focus_index else (1.0, 1.0, 0.0)
+            if i in self.selected_tiles:
+                outline_color = (1.0, 0.5, 0.0) # Orange highlight for selected
+            else:
+                outline_color = (1.0, 1.0, 1.0) if i != self.tile_manager.focus_index else (1.0, 1.0, 0.0)
             self._renderer.set_uniform("ui", "u_color", outline_color)
             self._renderer.draw("ui", [(self.ui_outline_vbo, "2f", "in_vert")], mode=moderngl.LINES)
 
@@ -116,9 +130,12 @@ class Window:
         # 3. Draw Context popups
         if self.popup_visible:
             self.ctx.disable(moderngl.DEPTH_TEST)
+            self._renderer.set_uniform("ui", "u_resolution", (self.width, self.height))
+
             tile = self.tile_manager.tiles[self.popup_tile_idx]
             has_widget = tile.widget is not None
 
+            # Render background boxes with higher "logical" Z-order for UI
             # Option 1 (Top box): Add Widget OR Attach Signal
             self._renderer.set_uniform("ui", "u_pos", (self.popup_x, self.popup_y))
             self._renderer.set_uniform("ui", "u_size", (140, 30))
@@ -131,9 +148,20 @@ class Window:
             self._renderer.set_uniform("ui", "u_color", (0.2, 0.2, 0.2))
             self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
 
+            if len(self.selected_tiles) == 2:
+                # Option 3 (Top-most box): Merge Selected
+                self._renderer.set_uniform("ui", "u_pos", (self.popup_x, self.popup_y + 30))
+                self._renderer.set_uniform("ui", "u_size", (140, 30))
+                self._renderer.set_uniform("ui", "u_color", (0.1, 0.5, 0.2))
+                self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
+                
+                self.merge_selected_label.x = self.popup_x + 10
+                self.merge_selected_label.y = self.popup_y + 45
+                self.merge_selected_label.draw()
+
             if not has_widget:
                 self.add_widget_label.x = self.popup_x + 10
-                self.add_widget_label.y = self.popup_y + 15
+                self.add_widget_label.y = self.popup_y + 15  # 30/2 height
                 self.add_widget_label.draw()
             else:
                 self.add_signal_label.x = self.popup_x + 10
@@ -141,32 +169,36 @@ class Window:
                 self.add_signal_label.draw()
 
                 self.remove_widget_label.x = self.popup_x + 10
-                self.remove_widget_label.y = self.popup_y - 15
+                self.remove_widget_label.y = self.popup_y - 15 # (y - 30) + 15
                 self.remove_widget_label.draw()
 
             # Optional Submenu
             if self.submenu_visible:
                 if not has_widget:
-                    # Submenu for Sub Widget
-                    self._renderer.set_uniform("ui", "u_pos", (self.submenu_x, self.submenu_y))
-                    self._renderer.set_uniform("ui", "u_size", (140, 30))
-                    self._renderer.set_uniform("ui", "u_color", (0.4, 0.4, 0.5))
-                    self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
-                    self.kinematic_frame_label.x = self.submenu_x + 10
-                    self.kinematic_frame_label.y = self.submenu_y + 15
-                    self.kinematic_frame_label.draw()
+                    # Submenu for Available Widgets
+                    for j, label in enumerate(self.widget_labels):
+                        box_y = self.submenu_y - j*30
+                        self._renderer.set_uniform("ui", "u_pos", (self.submenu_x, box_y))
+                        self._renderer.set_uniform("ui", "u_size", (140, 30))
+                        self._renderer.set_uniform("ui", "u_color", (0.4, 0.4, 0.5) if j % 2 == 0 else (0.35, 0.35, 0.45))
+                        self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
+                        
+                        label.x = self.submenu_x + 10
+                        label.y = box_y + 15
+                        label.draw()
                 else:
                     # Submenu for Available Signals
                     for j, label in enumerate(self.signal_labels):
+                        box_y = self.submenu_y - j*30
                         # Draw background
-                        self._renderer.set_uniform("ui", "u_pos", (self.submenu_x, self.submenu_y - j*30))
+                        self._renderer.set_uniform("ui", "u_pos", (self.submenu_x, box_y))
                         self._renderer.set_uniform("ui", "u_size", (140, 30))
                         self._renderer.set_uniform("ui", "u_color", (0.4, 0.4, 0.5) if j % 2 == 0 else (0.35, 0.35, 0.45))
                         self._renderer.draw("ui", [(self.ui_vbo, "2f", "in_vert")])
                         
                         # Draw Text
                         label.x = self.submenu_x + 10
-                        label.y = self.submenu_y - j * 30 + 15
+                        label.y = box_y + 15
                         label.draw()
 
             self.ctx.enable(moderngl.DEPTH_TEST)
@@ -180,6 +212,7 @@ class Window:
 
         for tile in self.tile_manager.tiles:
             if tile.widget is not None:
+                tile.widget.is_playing = self.is_playing
                 tile.widget.update()
 
     def on_draw(self):
@@ -193,23 +226,43 @@ class Window:
 
         @self.application.window.event
         def on_mouse_press(x, y, button, modifiers):
+            if modifiers & pyglet.window.key.MOD_SHIFT and button == pyglet.window.mouse.LEFT:
+                for i, tile in enumerate(self.tile_manager.tiles):
+                    if tile.x <= x <= tile.x + tile.width and tile.y <= y <= tile.y + tile.height:
+                        if len(self.selected_tiles) == 0 and self.tile_manager.focus_index != -1 and self.tile_manager.focus_index != i:
+                            # Automatically add the focused tile to start a multi-selection setup
+                            self.selected_tiles.add(self.tile_manager.focus_index)
+
+                        if i in self.selected_tiles:
+                            self.selected_tiles.remove(i)
+                        else:
+                            if len(self.selected_tiles) < 2:
+                                self.selected_tiles.add(i)
+                        return
+
             # Evaluate submenu click
             if self.submenu_visible:
                 tile = self.tile_manager.tiles[self.popup_tile_idx] if self.popup_tile_idx != -1 else None
-
+                
                 if tile and getattr(tile, 'widget', None) is None:
-                    if self.submenu_x <= x <= self.submenu_x + 140 and self.submenu_y <= y <= self.submenu_y + 30:
-                        if button == pyglet.window.mouse.LEFT:
-                            # Instantiate Kinematic Frame inside Tile 
-                            # Preallocate channels=5 so we have room for dynamic custom signals
-                            new_widget = KinematicFrame(channels=5)
-                            self.bind_widget_to_tile(self.popup_tile_idx, new_widget)
-                            for param in ['eulerian_x', 'eulerian_y', 'eulerian_z']:
-                                self.data_bus.push(param, 0.0)
-                            try:
-                                new_widget.bind_external_signal(self.data_bus, [])
-                            except Exception:
-                                pass
+                    for j, label in enumerate(self.widget_labels):
+                        btn_y = self.submenu_y - j*30
+                        if self.submenu_x <= x <= self.submenu_x + 140 and btn_y <= y <= btn_y + 30:
+                            if button == pyglet.window.mouse.LEFT:
+                                if label.text == 'Kinematic Frame':
+                                    # Instantiate Kinematic Frame inside Tile 
+                                    new_widget = KinematicFrame(channels=5)
+                                    self.bind_widget_to_tile(self.popup_tile_idx, new_widget)
+                                    for param in ['eulerian_x', 'eulerian_y', 'eulerian_z']:
+                                        self.data_bus.push(param, 0.0)
+                                    try:
+                                        new_widget.bind_external_signal(self.data_bus, [])
+                                    except Exception:
+                                        pass
+                                elif label.text == 'Line Plot':
+                                    new_widget = LinePlot(channels=5)
+                                    self.bind_widget_to_tile(self.popup_tile_idx, new_widget)
+                            break
                 else:
                     if tile:
                         # Iterate backwards over dynamically created signal tags to check hitbox
@@ -223,6 +276,7 @@ class Window:
 
                 self.submenu_visible = False
                 self.popup_visible = False
+                self.submenu_mode = None
                 return
             
             # Evaluate main popup click
@@ -231,10 +285,24 @@ class Window:
                 has_widget = tile is not None and getattr(tile, 'widget', None) is not None
 
                 if self.popup_x <= x <= self.popup_x + 140:
-                    if self.popup_y <= y <= self.popup_y + 30:
+                    if len(self.selected_tiles) == 2 and self.popup_y + 30 <= y <= self.popup_y + 60:
+                        if button == pyglet.window.mouse.LEFT:
+                            t1, t2 = list(self.selected_tiles)
+                            if self.tile_manager.can_merge(t1, t2):
+                                self.tile_manager.merge(t1, t2)
+                                self._update_all_widgets_cameras()
+                                self.selected_tiles.clear()
+                            else:
+                                print("Tiles cannot be merged: Dimensions or borders do not align to form a perfect rectangle.")
+                            
+                            self.popup_visible = False
+                            return
+
+                    elif self.popup_y <= y <= self.popup_y + 30:
                         if button == pyglet.window.mouse.LEFT:
                             self.submenu_visible = True
                             self.submenu_x = self.popup_x + 140
+                            self.submenu_mode = 'widget'
                             if has_widget:
                                 # Populate signal list safely
                                 self.submenu_y = self.popup_y
@@ -242,9 +310,8 @@ class Window:
                                 if self.simulation:
                                     for sig in self.simulation.exposed_signals:
                                         # Only display signals that the active widget explicitly supports 
-                                        if sig not in ['eulerian_x', 'eulerian_y', 'eulerian_z']:
-                                            if tile.widget.accepts_signal(self.data_bus, sig):
-                                                self.signal_labels.append(pyglet.text.Label(sig, color=(255, 255, 255, 255), anchor_y='center', font_size=10))
+                                        if tile.widget.accepts_signal(self.data_bus, sig):
+                                            self.signal_labels.append(pyglet.text.Label(sig, color=(255, 255, 255, 255), anchor_y='center', font_size=10))
                             else:
                                 self.submenu_y = self.popup_y
                             return
@@ -255,17 +322,61 @@ class Window:
                 
                 self.popup_visible = False
                 self.submenu_visible = False
+                self.submenu_mode = None
                 return
+
+            # Check if dragging a border
+            border = self.tile_manager.get_border_at(x, y, threshold=5)
+            if border and button == pyglet.window.mouse.LEFT:
+                self.dragging_border = True
+                return
+
+            # Normal left click to focus
+            if button == pyglet.window.mouse.LEFT and not (modifiers & pyglet.window.key.MOD_SHIFT):
+                # Only clear selected_tiles if we aren't clicking inside an active context menu or UI elements
+                if not self.popup_visible and not self.submenu_visible:
+                    for i, tile in enumerate(self.tile_manager.tiles):
+                        if tile.x <= x <= tile.x + tile.width and tile.y <= y <= tile.y + tile.height:
+                            self.tile_manager.set_focus(i)
+                            self.selected_tiles.clear()
+                            break
 
             if button == pyglet.window.mouse.RIGHT:
                 for i, tile in enumerate(self.tile_manager.tiles):
                     if tile.x <= x <= tile.x + tile.width and tile.y <= y <= tile.y + tile.height:
                         self.popup_visible = True
                         self.submenu_visible = False
+                        self.submenu_mode = None
                         self.popup_x = x
                         self.popup_y = y
                         self.popup_tile_idx = i
                         break
+
+        @self.application.window.event
+        def on_mouse_release(x, y, button, modifiers):
+            if button == pyglet.window.mouse.LEFT:
+                self.dragging_border = False
+
+        @self.application.window.event
+        def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
+            if self.dragging_border and buttons & pyglet.window.mouse.LEFT:
+                moved_x, moved_y = self.tile_manager.resize_border(x - dx, y - dy, dx, dy, threshold=15)
+                if moved_x != 0 or moved_y != 0:
+                    self._update_all_widgets_cameras()
+
+        @self.application.window.event
+        def on_mouse_motion(x, y, dx, dy):
+            if getattr(self, 'popup_visible', False):
+                return
+            
+            border = self.tile_manager.get_border_at(x, y, threshold=5)
+            if border:
+                if border[0] == 'vertical':
+                    self.application.window.set_mouse_cursor(self.application.window.get_system_mouse_cursor(self.application.window.CURSOR_SIZE_LEFT_RIGHT))
+                else:
+                    self.application.window.set_mouse_cursor(self.application.window.get_system_mouse_cursor(self.application.window.CURSOR_SIZE_UP_DOWN))
+            else:
+                self.application.window.set_mouse_cursor(None)
 
         @self.application.window.event
         def on_key_press(symbol, modifiers):
@@ -279,6 +390,15 @@ class Window:
             elif symbol == pyglet.window.key.H:
                 self.tile_manager.split_focused_tile('horizontal')
                 self._update_all_widgets_cameras()
+            elif symbol == pyglet.window.key.M:
+                if len(self.selected_tiles) == 2:
+                    t1, t2 = list(self.selected_tiles)
+                    if self.tile_manager.can_merge(t1, t2):
+                        self.tile_manager.merge(t1, t2)
+                        self._update_all_widgets_cameras()
+                        self.selected_tiles.clear()
+                    else:
+                        print("Tiles cannot be merged: Dimensions or borders do not align to form a perfect rectangle.")
             else:
                 idx = self.tile_manager.focus_index
                 current = self.tile_manager.tiles[idx]
@@ -315,7 +435,7 @@ class Window:
                 tile.widget.camera.update_projection(max(1, tile.width), max(1, tile.height))
 
 if __name__ == "__main__":
-    width, height = 800, 600
+    width, height = 1920, 1080
 
     window = pyglet.window.Window(width, height, "Tile Windows & Widgets")
     window.switch_to()

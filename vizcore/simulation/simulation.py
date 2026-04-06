@@ -59,9 +59,11 @@ class AttitudeControlSim(BaseSimulation):
         
         # 2. Modify them exactly like ordinary instance variables.
         self.eulerian_x = math.sin(self.time) * 0.5 
-        self.eulerian_y = math.cos(self.time * 0.5) * 0.5
-        self.eulerian_z += dt * 0.2
+        # self.eulerian_y = math.cos(self.time * 0.5) * 0.5
+        # self.eulerian_z += dt * 0.2
         
         # The velocity oscillates to create an interesting dynamic arrow
-        self.velocity = [math.sin(self.time) * 2.0, math.cos(self.time) * 2.0, 0.5]
+        # self.velocity = [math.sin(self.time) * 2.0, math.cos(self.time) * 2.0, 0.5]
+        self.velocity = [0,2,0]
+        
         self.displacement = [math.sin(self.time * 0.5) * 1.0, math.cos(self.time * 0.5) * 1.0, 0.0]
