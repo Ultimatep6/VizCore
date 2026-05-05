@@ -55,9 +55,18 @@ class KinematicFrame(BaseWidget):
 
         self.arrows = self.channels + 3  # total arrows = basis (3) + dynamic (channels)
 
-        self.arrow_verts, self.arrow_inds = self._build_arrow(
-            shaft_radius, shaft_height, head_radius, head_height, segments
-        )
+        # Use mesh registry to get arrow mesh (for consistency with new system)
+        # Fallback to procedural if mesh registry fails
+        try:
+            from vizcore.meshes import load_mesh
+            mesh_data = load_mesh('arrow')
+            self.arrow_verts = mesh_data['vertices']
+            self.arrow_inds = mesh_data['indices']
+        except Exception:
+            # Fallback to original procedural generation
+            self.arrow_verts, self.arrow_inds = self._build_arrow(
+                shaft_radius, shaft_height, head_radius, head_height, segments
+            )
 
         self._text_renderer = text_renderer
         self._renderer = renderer
@@ -75,17 +84,13 @@ class KinematicFrame(BaseWidget):
             fragment_path="vizcore/widget/shaders/arrow.frag"
         )
     
-    
-    def accepts_signal(self, data_bus, signal_name):
-        # Kinematic frame only accepts 3D signals
-        latest_val = data_bus.latest(signal_name)
-        if latest_val is not None:
-            arr_val = np.asarray(latest_val)
-            if arr_val.shape == (3,):
-                return True
-        return False
+    @property
+    def required_shape(self):
+        # Kinematic frame only accepts 3D vectors
+        return [(3,)]
 
     def update(self):
+        # ...existing code...
         # Pull latest values from the data bus for each signal and update both local and GPU buffer in one pass
         if hasattr(self, 'signal_names') and hasattr(self, 'data_bus'):
             transforms = []
@@ -109,7 +114,7 @@ class KinematicFrame(BaseWidget):
                     val_normalized = latest / mag
                     rot_mat = rotation_matrix_from_vectors(local_z, val_normalized).astype('f4')
                 
-                # GLSL mat3 expects column-major order (transpose before flatten)
+                # Pack matrix columns in attribute order for GLSL mat3 instance input
                 rot_flat = rot_mat.T.flatten()
                 instance_entry = np.concatenate([rot_flat, [mag]], dtype='f4')
                 transforms.append(instance_entry)
@@ -239,7 +244,7 @@ class KinematicFrame(BaseWidget):
             head_h  = self._head_height
             tip_len = shaft_h + head_h
 
-            def world_tip_dir(local_axis, tip_len, offset=1.1):
+            def world_tip_dir(local_axis, tip_len, offset=1.1, length_scale=1.0):
                 """
                 Compute world-space tip position for any vector (not just basis vectors).
                 local_axis: direction in local space (e.g., [1,0,0] for X)
@@ -255,13 +260,13 @@ class KinematicFrame(BaseWidget):
                     direction = np.array([0, 0, 1], dtype=np.float32)
                     norm = 1.0
                 direction = direction / norm
-                return origin + direction * tip_len * offset
+                return origin + direction * tip_len * length_scale * offset
 
 
-            # Option 2: Robust direction-based (replace world_tip entirely)
-            x_tip = world_tip_dir([-1,0,0], tip_len)
-            z_tip = world_tip_dir([0,-1,0], tip_len)
-            y_tip = world_tip_dir([0,0,1], tip_len)
+            # Basis tip directions matching frame convention: X(+x), Y(+y), Z(+z)
+            x_tip = world_tip_dir([1, 0, 0], tip_len)
+            y_tip = world_tip_dir([0, 1, 0], tip_len)
+            z_tip = world_tip_dir([0, 0, 1], tip_len)
             
             view, projection = self.camera.view, self.camera.projection
 
@@ -269,14 +274,18 @@ class KinematicFrame(BaseWidget):
                                             color=self.RED,
                                             scale=self._label_scale)
             self._text_renderer.render_label("Y", y_tip, view, projection,
-                                            color=self.BLUE,
+                                            color=self.GREEN,
                                             scale=self._label_scale)
             self._text_renderer.render_label("Z", z_tip, view, projection,
-                                            color=self.GREEN,
+                                            color=self.BLUE,
                                             scale=self._label_scale)
             
             for signal, val in self.values.items():
-                tip = world_tip_dir(val, tip_len)
+                vec = np.asarray(val, dtype=np.float32)
+                mag = float(np.linalg.norm(vec))
+                if mag <= 1e-8:
+                    continue
+                tip = world_tip_dir(vec / mag, tip_len, length_scale=mag)
                 color = self.colors.get(signal, self.YELLOW)
                 if isinstance(color, np.ndarray):
                     color = color.flatten()
@@ -287,8 +296,8 @@ class KinematicFrame(BaseWidget):
     def _build_verts(self):
     
         # Bake each arrow's orientation into its vertices at CPU time
-        x_verts = self._transform(self.arrow_verts, rotation_y(-np.pi / 2))  # +Z → +X
-        y_verts = self._transform(self.arrow_verts, rotation_x( np.pi / 2))  # +Z → +Y
+        x_verts = self._transform(self.arrow_verts, rotation_y(np.pi / 2))   # +Z → +X
+        y_verts = self._transform(self.arrow_verts, rotation_x(-np.pi / 2))  # +Z → +Y
         z_verts = self.arrow_verts.copy()                                       # +Z stays
 
         # Use signal_names (the names of bound signals) as the source of truth for extra arrows

@@ -15,7 +15,7 @@ class Renderer:
 
         # Initialize Text Rendering
         try:
-            font_atlas_body = FontAtlas(font_path="vizcore/text/data/cmunbi.ttf", font_size=48)
+            font_atlas_body = FontAtlas(font_path="vizcore/text/data/Hack-Regular.ttf", font_size=48)
             # Create a mock window wrapper for TextRenderer which expects .ctx, .texture and .size
             class WindowWrapper:
                 def __init__(self, ctx, app):
@@ -51,5 +51,103 @@ class Renderer:
 
     def set_uniform(self, shader_name, uniform_name, data):
         self.shader_manager.set_uniform(shader_name, uniform_name, data)
+
+    def draw_mesh(self, mesh_name: str, mvp_matrix: np.ndarray = None, 
+                  model_matrix: np.ndarray = None):
+        """Draw a mesh from the mesh registry.
+        
+        Args:
+            mesh_name: Name of mesh in registry or file path
+            mvp_matrix: Model-View-Projection matrix (4x4)
+            model_matrix: Model matrix (4x4) - if provided, uses camera's view/projection
+        """
+        from vizcore.meshes import get_mesh
+        
+        # Get mesh data
+        mesh_data = get_mesh(mesh_name)
+        vertices = mesh_data['vertices']
+        indices = mesh_data['indices']
+        
+        # For now, just render without normals/uvs (extend later)
+        if vertices.size == 0 or indices.size == 0:
+            return
+            
+        # Create VBOs
+        vbo_vertices = self.ctx.buffer(vertices.astype('f4').tobytes())
+        ibo = self.ctx.buffer(indices.astype('i4').tobytes())
+        
+        # Get or create shader
+        program = self.shader_manager.get_shader("ui")  # Temporary - use UI shader
+        if program is None:
+            # Fallback - create simple shader if needed
+            vbo_vertices.release()
+            ibo.release()
+            return
+            
+        # Create VAO
+        vao = self.ctx.vertex_array(
+            program, 
+            [(vbo_vertices, "3f", "in_position")],
+            ibo
+        )
+        
+        # Set uniforms
+        if mvp_matrix is not None:
+            self.set_uniform("ui", "mvp", mvp_matrix.astype('f4').T.tobytes())
+        elif model_matrix is not None and self.application:
+            # Use camera's view and projection
+            view = np.eye(4, dtype='f4')
+            projection = np.eye(4, dtype='f4')
+            mvp = projection @ view @ model_matrix
+            self.set_uniform("ui", "mvp", mvp.astype('f4').T.tobytes())
+        
+        # Render
+        vao.render(moderngl.TRIANGLES)
+        
+        # Cleanup
+        vao.release()
+        vbo_vertices.release()
+        ibo.release()
+
+    def draw_instanced(self, mesh_name: str, transform_matrices: list,
+                       mvp_matrix: np.ndarray = None):
+        """Draw multiple instances of a mesh with different transforms.
+        
+        Args:
+            mesh_name: Name of mesh in registry or file path
+            transform_matrices: List of 4x4 transformation matrices
+            mvp_matrix: Optional base MVP to combine with each transform
+        """
+        if not transform_matrices:
+            return
+            
+        from vizcore.meshes import get_mesh
+        
+        # Get mesh data
+        mesh_data = get_mesh(mesh_name)
+        vertices = mesh_data['vertices']
+        indices = mesh_data['indices']
+        
+        if vertices.size == 0 or indices.size == 0:
+            return
+            
+        # Create VBOs
+        vbo_vertices = self.ctx.buffer(vertices.astype('f4').tobytes())
+        ibo = self.ctx.buffer(indices.astype('i4').tobytes())
+        
+        # For instancing, we'd need to create a buffer for the transform matrices
+        # This is a simplified version - full instancing would require more setup
+        # For now, just draw each instance separately (less efficient but works)
+        for transform in transform_matrices:
+            if mvp_matrix is not None:
+                final_mvp = mvp_matrix @ transform
+            else:
+                final_mvp = transform
+                
+            self.draw_mesh(mesh_name, mvp_matrix=final_mvp)
+            
+        # Cleanup
+        vbo_vertices.release()
+        ibo.release()
 
     

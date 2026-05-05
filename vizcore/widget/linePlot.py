@@ -59,15 +59,10 @@ class LinePlot(BaseWidget):
             (0.2, 0.85, 0.85) # Cyan
         ]
         
-    def accepts_signal(self, data_bus, signal_name):
-        # Line plot only accepts 1D signals -- For now
-        latest_val = data_bus.latest(signal_name)
-        if latest_val is not None:
-            arr_val = np.asarray(latest_val)
-            # Accept scalar floats (ndim == 0) or single-element arrays (shape[0] == 1)
-            if arr_val.ndim == 0 or (arr_val.ndim == 1 and arr_val.shape[0] == 1):
-                return True
-        return False
+    @property
+    def required_shape(self):
+        # Line plot only accepts 1D signals (scalars or (1,) arrays)
+        return [(1,)]
     
     def bind_external_signal(self, data_bus, signal: list):
         if not hasattr(self, 'signal_names'):

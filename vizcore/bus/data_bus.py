@@ -18,8 +18,42 @@ class DataBus:
     """
     def __init__(self, buffer_size=1024):
         self._signals = {}
+        self._metadata = {} # Stores shape, dtype, etc.
         self._lock = threading.RLock()
         self._buffer_size = buffer_size
+
+    def push_payload(self, payload):
+        """
+        Recursively flattens a hierarchical payload and pushes to individual signal buffers.
+        """
+        with self._lock:
+            self._flatten_and_push("", payload)
+
+    def _flatten_and_push(self, prefix, data):
+        for key, val in data.items():
+            path = f"{prefix}.{key}" if prefix else key
+            
+            if isinstance(val, dict):
+                self._flatten_and_push(path, val)
+            else:
+                # Leaf node - convert to numpy and push
+                self.push(path, val)
+                
+                # Update/Store metadata on first push
+                if path not in self._metadata:
+                    latest = self.latest(path)
+                    if hasattr(latest, 'shape'):
+                        self._metadata[path] = {"shape": latest.shape}
+                    else:
+                        self._metadata[path] = {"shape": (1,)} # Scalar
+
+    def get_signals_by_shape(self, target_shape):
+        """
+        Returns a list of signal paths that match the target shape.
+        """
+        with self._lock:
+            return [path for path, meta in self._metadata.items() 
+                    if meta["shape"] == target_shape]
 
     def register_signal(self, name, buffer_size=None):
         """Register a new signal with a ring buffer if it doesn't already exist."""
