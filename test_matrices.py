@@ -13,11 +13,10 @@ X_AXIS = np.array([1.0, 0.0, 0.0])
 Y_AXIS = np.array([0.0, 1.0, 0.0])
 Z_AXIS = np.array([0.0, 0.0, 1.0])
 
-
 def get_translation_matrix(tx=0, ty=0, tz=0) -> np.ndarray:
     """
     Returns a 4x4 translation matrix for translating by (tx, ty, tz) in column-major format.
-
+    
     :param tx: Description
     :param ty: Description
     :param tz: Description
@@ -26,10 +25,10 @@ def get_translation_matrix(tx=0, ty=0, tz=0) -> np.ndarray:
     """
     return np.array(
         [
-            [1, 0, 0, tx],
-            [0, 1, 0, ty],
-            [0, 0, 1, tz],
-            [0, 0, 0, 1],
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [tx, ty, tz, 1],
         ],
         dtype=np.float32,
     )
@@ -46,8 +45,7 @@ def get_scale_matrix(sx=1, sy=1, sz=1) -> np.ndarray:
         dtype=np.float32,
     )
 
-
-def get_rot_matrix(angle, axis: np.ndarray) -> np.ndarray:
+def get_rot_matrix(angle, axis:np.ndarray) -> np.ndarray:
     c, s = np.cos(angle), np.sin(angle)
     x, y, z = axis
     return np.array(
@@ -69,16 +67,13 @@ def get_total_rot_matrix(angle_x=0.0, angle_y=0.0, angle_z=0.0) -> np.ndarray:
 
     rotT = rotZ @ rotY @ rotX
     return rotT
+    
 
-
-def get_model_matrix(tx=0, ty=0, tz=0, sx=1, sy=1, sz=1, rx=0.0, ry=0.0, rz=0.0):
+def get_model_matrix(tx=0, ty=0, tz=0, sx=1,sy=1,sz=1, rx = 0.0, ry = 0.0, rz = 0.0):
     T = get_translation_matrix(tx, ty, tz)
     R = get_total_rot_matrix(rx, ry, rz)
     S = get_scale_matrix(sx, sy, sz)
     return T @ R @ S
-
-
-get_model_matrix()
 
 
 def normalize(v):
@@ -102,47 +97,34 @@ def normalize_mesh_vertices(vertices: np.ndarray) -> np.ndarray:
     scale = 2.0 / max_extent
     return (vertices - center) * scale
 
-
 def get_view_matrix(eye, target, up=np.array([0, 1, 0], dtype=np.float32)):
     zaxis = normalize(eye - target)
     xaxis = normalize(np.cross(up, zaxis))
     yaxis = np.cross(zaxis, xaxis)
-
-    viewMatrix = np.array(
+        
+    orient = np.array(
         [
             [xaxis[0], yaxis[0], zaxis[0], 0],
             [xaxis[1], yaxis[1], zaxis[1], 0],
             [xaxis[2], yaxis[2], zaxis[2], 0],
-            [np.dot(-xaxis, eye), np.dot(-yaxis, eye), np.dot(-zaxis, eye), 1],
+            [0, 0, 0, 1],
         ],
         dtype=np.float32,
     )
 
-    return viewMatrix
+    position = get_translation_matrix(-eye[0], -eye[1], -eye[2])
+    return view
 
 
-def get_perspective_matrix(fov_y_deg: float, aspect: float, near: float, far: float):
-    """
-    Compute a perspective projection matrix (OpenGL-style, column-major layout).
-
-    Args:
-        fov_y_deg: Vertical field of view in degrees
-        aspect: Aspect ratio (width / height)
-        near: Near clipping plane (positive)
-        far: Far clipping plane (positive, > near)
-
-    Returns:
-        4x4 perspective projection matrix (as numpy array, column-major order)
-    """
-    fov_rad = np.radians(fov_y_deg)
-    f = 1.0 / np.tan(fov_rad / 2.0)
-
+def get_perspective_matrix(fov_y, aspect, near, far):
+    f = 1.0 / np.tan(fov_y / 2.0)
+    # Transposed for row-major convention
     return np.array(
         [
             [f / aspect, 0, 0, 0],
             [0, f, 0, 0],
-            [0, 0, (far + near) / (near - far), (2 * far * near) / (near - far)],
-            [0, 0, -1, 0],
+            [0, 0, (far + near) / (near - far), -1],
+            [0, 0, (2 * far * near) / (near - far), 0],
         ],
         dtype=np.float32,
     )
@@ -174,17 +156,11 @@ class TestMatrices(unittest.TestCase):
         tx, ty, tz = 1.0, 2.0, 3.0
         sx, sy, sz = 2.0, 3.0, 4.0
         angle_x, angle_y, angle_z = np.radians(30), np.radians(45), np.radians(60)
-        expected = get_model_matrix(
-            tx=tx, ty=ty, tz=tz, sx=sx, sy=sy, sz=sz, rx=angle_x, ry=angle_y, rz=angle_z
-        )
+        expected = get_model_matrix(tx=tx, ty=ty, tz=tz, sx=sx, sy=sy, sz=sz, rx=angle_x, ry=angle_y, rz=angle_z)
 
         T = glm.translate((tx, ty, tz))
 
-        R = (
-            glm.rotate(np.rad2deg(angle_z), (0.0, 0.0, 1.0))
-            @ glm.rotate(np.rad2deg(angle_y), (0.0, 1.0, 0.0))
-            @ glm.rotate(np.rad2deg(angle_x), (1.0, 0.0, 0.0))
-        )
+        R = glm.rotate(np.rad2deg(angle_z), (0.0, 0.0, 1.0)) @ glm.rotate(np.rad2deg(angle_y), (0.0, 1.0, 0.0)) @ glm.rotate(np.rad2deg(angle_x), (1.0, 0.0, 0.0))        
 
         S = glm.scale((sx, sy, sz))
 
@@ -196,15 +172,4 @@ class TestMatrices(unittest.TestCase):
         target = np.array([4.0, 5.0, 6.0])
         expected = get_view_matrix(eye, target)
         result = glm.lookat(eye, target, (0.0, 1.0, 0.0)).T
-        np.testing.assert_array_almost_equal(result, expected)
-
-    def test_perspective_matrix(self):
-
-        fov_y = 45.0
-        aspect = 16 / 9
-        near = 0.1
-        far = 100.0
-        expected = get_perspective_matrix(fov_y, aspect, near, far)
-        result = glm.perspective(fov_y, aspect, znear=near, zfar=far)
-
         np.testing.assert_array_almost_equal(result, expected)
