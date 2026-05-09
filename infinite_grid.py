@@ -145,7 +145,7 @@ class InfiniteGridApp(mglw.WindowConfig):
     def update_CameraPos(self):
         pos = self.camera.eye
         self.grid_program["gCameraWorldPos"].write(pos.astype("f4").tobytes())
-        self.grid_program["gGridSize"].write(np.array([100.0], dtype="f4").tobytes())
+        self.grid_program["gGridSize"].write(np.array([5.0], dtype="f4").tobytes())
         self.grid_program["gGridMinPixelsBetweenCells"].write(
             np.array([2.0], dtype="f4").tobytes()
         )

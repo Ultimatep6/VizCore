@@ -5,6 +5,13 @@ Y_AXIS = np.array([0.0, 1.0, 0.0])
 Z_AXIS = np.array([0.0, 0.0, 1.0])
 
 
+def combine_meshes(verts_a, inds_a, verts_b, inds_b):
+    offset = len(verts_a)
+    combined_verts = np.concatenate([verts_a, verts_b], axis=0)
+    combined_inds = np.concatenate([inds_a, inds_b + offset], axis=0)
+    return combined_verts, combined_inds
+
+
 def rotation_matrix_from_vectors(a, b):
     a = a / np.linalg.norm(a)
     b = b / np.linalg.norm(b)
@@ -52,6 +59,9 @@ def get_scale_matrix(sx=1, sy=1, sz=1) -> np.ndarray:
 
 
 def get_rot_matrix(angle, axis: np.ndarray) -> np.ndarray:
+    """
+    Get the rotation matrix for a single axis rotation given in radians
+    """
     c, s = np.cos(angle), np.sin(angle)
     x, y, z = axis
     return np.array(
