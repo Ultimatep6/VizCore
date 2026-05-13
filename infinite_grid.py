@@ -3,9 +3,16 @@ import numpy as np
 import moderngl_window as mglw
 from vizcore.utils import *
 from vizcore.renderer.camera import Camera
+from vizcore.meshes.arrow import build_axis_arrow
 
 
 class InfiniteGridApp(mglw.WindowConfig):
+    """Infinite grid viewer with axis visualization.
+
+    Displays an infinite grid that scales based on camera distance,
+    plus a colored axis arrow for orientation (X=red, Y=green, Z=blue).
+    """
+
     gl_version = (3, 3)
     window_size = (1024, 768)
     title = "Grid Viewer"
@@ -14,6 +21,7 @@ class InfiniteGridApp(mglw.WindowConfig):
         super().__init__(**kwargs)
         self.ctx.enable(moderngl.BLEND)
         self.ctx.blend_func = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
+
         self.grid_program = self.ctx.program(
             vertex_shader="""
             #version 330
@@ -125,45 +133,108 @@ class InfiniteGridApp(mglw.WindowConfig):
             }
             """,
         )
-        self.vao = self.ctx.vertex_array(
+        self.grid_vao = self.ctx.vertex_array(
             self.grid_program,
             [],
         )
+
         self.camera = Camera(
             window_size=self.window_size,
-            eye=np.array([0.1, 0.1, 0.0]),
+            eye=np.array([-0.5, 0.1, 0.0]),
             move_speed=0.01,
         )
         self.keys_pressed = set()
-        self.update_gvP()
 
-    def update_gvP(self):
-        model = np.identity(4)
-        gVp = self.camera.get_vp() @ model
-        self.grid_program["gVp"].write(gVp.astype("f4").T.tobytes())
+        self._setup_axis()
 
-    def update_CameraPos(self):
-        pos = self.camera.eye
-        self.grid_program["gCameraWorldPos"].write(pos.astype("f4").tobytes())
-        self.grid_program["gGridSize"].write(np.array([5.0], dtype="f4").tobytes())
-        self.grid_program["gGridMinPixelsBetweenCells"].write(
-            np.array([2.0], dtype="f4").tobytes()
+    def _setup_axis(self):
+        """Create axis visualization with colored arrows for X, Y, Z."""
+        RED = np.array([0.9, 0.2, 0.2], dtype=np.float32)
+        GREEN = np.array([0.2, 0.85, 0.2], dtype=np.float32)
+        BLUE = np.array([0.2, 0.4, 0.95], dtype=np.float32)
+
+        self.axis_program = self.ctx.program(
+            vertex_shader="""
+            #version 330
+            uniform mat4 u_vp;
+            in vec3 in_vert;
+            in vec3 in_color;
+            out vec3 v_color;
+            void main() {
+                gl_Position = u_vp * vec4(in_vert, 1.0);
+                v_color = in_color;
+            }
+            """,
+            fragment_shader="""
+            #version 330
+            in vec3 v_color;
+            out vec4 FragColor;
+            void main() {
+                FragColor = vec4(v_color, 1.0);
+            }
+            """,
         )
 
-    def render(self, time, frame_time):
+        arrow_verts, arrow_idxs = build_axis_arrow(
+            shaft_radius=0.02,
+            shaft_height=0.5,
+            head_radius=0.06,
+            head_height=0.1,
+            segments=16,
+        )
+        arrow_verts *= 0.2
+
+        x_verts = transform_vertices(arrow_verts, get_rot_matrix(np.pi / 2, Y_AXIS))
+        y_verts = transform_vertices(arrow_verts, get_rot_matrix(-np.pi / 2, X_AXIS))
+        z_verts = arrow_verts.copy()
+
+        x_colored = colorize_vertices(x_verts, RED)
+        y_colored = colorize_vertices(y_verts, GREEN)
+        z_colored = colorize_vertices(z_verts, BLUE)
+
+        n_x = len(x_verts)
+        n_y = len(y_verts)
+
+        basis_verts = np.concatenate([x_colored, y_colored, z_colored], axis=0)
+        basis_inds = np.concatenate(
+            [arrow_idxs, arrow_idxs + n_x, arrow_idxs + n_x + n_y], axis=0
+        ).astype(np.int32)
+
+        self.vbo_axis_vert = self.ctx.buffer(basis_verts[:, :3].astype("f4"))
+        self.vbo_axis_color = self.ctx.buffer(basis_verts[:, 3:].astype("f4"))
+        self.ibo_axis = self.ctx.buffer(basis_inds)
+
+        self.axis_vao = self.ctx.vertex_array(
+            self.axis_program,
+            [
+                (self.vbo_axis_vert, "3f", "in_vert"),
+                (self.vbo_axis_color, "3f", "in_color"),
+            ],
+            index_buffer=self.ibo_axis,
+        )
+
+    def update_uniforms(self):
+        """Update camera-related uniforms for grid rendering."""
+        gVp = self.camera.get_vp()
+        self.grid_program["gVp"].write(gVp.astype("f4").T.tobytes())
+
+        pos = self.camera.eye
+        self.grid_program["gCameraWorldPos"].write(pos.astype("f4").tobytes())
+
+    def on_render(self, time, frame_time):
+        """Main render loop - updates camera and renders grid + axis."""
         self.camera.on_key_press(self.wnd.keys, self.keys_pressed)
-        self.update_gvP()
-        self.update_CameraPos()
+        self.update_uniforms()
+
         self.ctx.clear(1.0, 1.0, 1.0, 1.0)
-        self.vao.render(moderngl.TRIANGLES, 6)
 
-    def on_render(self, time: float, frame_time: float) -> None:
-        self.render(time, frame_time)
+        self.grid_vao.render(moderngl.TRIANGLES, 6)
 
-    # mouse
+        vp = self.camera.get_vp()
+        self.axis_program["u_vp"].write(vp.astype("f4").T.tobytes())
+        self.axis_vao.render(moderngl.TRIANGLES)
+
     def on_mouse_press_event(self, x, y, button):
-        print(f"Mouse button pressed: {button}")
-
         self.camera.on_mouse_press(button)
 
     def on_mouse_release_event(self, x, y, button):
@@ -176,15 +247,8 @@ class InfiniteGridApp(mglw.WindowConfig):
     def on_key_event(self, key, action, modifiers):
         if action == self.wnd.keys.ACTION_PRESS:
             self.keys_pressed.add(key)
-            if key == self.wnd.keys.SPACE:
-                print("SPACE key was pressed")
         elif action == self.wnd.keys.ACTION_RELEASE:
             self.keys_pressed.discard(key)
-            if key == self.wnd.keys.SPACE:
-                print("SPACE key was released")
-
-        if key == self.wnd.keys.Z and modifiers.ctrl:
-            print("Ctrl + Z was pressed")
 
 
 if __name__ == "__main__":

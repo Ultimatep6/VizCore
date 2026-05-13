@@ -6,7 +6,7 @@ import pyglet
 import numpy as np
 from vizcore.window.window import Window
 from vizcore.bus.data_bus import DataBus
-from vizcore.widget.simulation_room import SimulationRoom
+from vizcore.widget.simulation_room import SimulationRoomWidget
 from vizcore.meshes import load_mesh
 
 # Set up Pyglet window
@@ -31,7 +31,7 @@ app = type("App", (object,), {"ctx": ctx, "window": window})()
 viz_window = Window(app, width, height)
 
 # Create SimulationRoom widget - with grid and axes off for cleaner test
-sim_room = SimulationRoom(show_grid=False, show_axes=False)
+sim_room = SimulationRoomWidget()
 
 # Load and add the test cube as an object
 cube_mesh = load_mesh("test_models/test_cube.obj")

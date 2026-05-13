@@ -1,0 +1,6 @@
+[project]
+name = "vizcore"
+version = "0.0.1" # Add this line with your desired version
+
+[tool.setuptools.packages.find]
+include = ["vizcore"]
