@@ -5,7 +5,7 @@ Tests basic functionality without rendering.
 import unittest
 import numpy as np
 from vizcore.bus.data_bus import DataBus
-from vizcore.widget.kinematicFrame import KinematicFrame
+from vizcore.components.visualization.kinematicFrame import KinematicFrame
 from vizcore.renderer.renderer import Renderer
 
 import moderngl

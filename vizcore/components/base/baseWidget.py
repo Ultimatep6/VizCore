@@ -1,4 +1,7 @@
 
+import numpy as np
+
+
 class BaseWidget:
     """
     Template class for authoring custom visualization widgets.
@@ -29,6 +32,23 @@ class BaseWidget:
         Returns None if the widget accepts any shape.
         """
         return None
+
+    @property
+    def use_camera(self) -> bool:
+        """
+        If True, this widget receives camera input (eye, target, etc.).
+        If False, camera input is skipped for this widget.
+        """
+        return False
+
+    def get_camera_config(self) -> dict:
+        """
+        Returns camera configuration kwargs for widgets that accept camera input.
+        Override in subclasses to customize camera position, target, fov, etc.
+        """
+        return {
+            "enable_keyboard": True,
+        }
 
     def accepts_signal(self, data_bus, signal_name) -> bool:
         """
@@ -121,7 +141,8 @@ class BaseWidget:
             button: Mouse button pressed (pyglet.window.mouse.LEFT, etc.)
             modifiers: Modifier keys (pyglet.window.key.MOD_SHIFT, etc.)
         """
-        pass
+        if self.camera and hasattr(self.camera, "on_mouse_press"):
+            self.camera.on_mouse_press(button, x, y)
 
     def on_mouse_release(self, x, y, button, modifiers):
         """
@@ -132,7 +153,8 @@ class BaseWidget:
             button: Mouse button released
             modifiers: Modifier keys
         """
-        pass
+        if self.camera and hasattr(self.camera, "on_mouse_release"):
+            self.camera.on_mouse_release(button)
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
@@ -144,7 +166,8 @@ class BaseWidget:
             buttons: Mouse buttons currently pressed
             modifiers: Modifier keys
         """
-        pass
+        if self.camera and hasattr(self.camera, "on_mouse_drag"):
+            self.camera.on_mouse_drag(x, y)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
         """
@@ -193,3 +216,16 @@ class BaseWidget:
         Use renderer.draw("shader_name", [(vbo, format, attrs...)], ibo)
         """
         raise NotImplementedError("draw() must be implemented by subclass")
+
+    @staticmethod
+    def transform_vertices(verts: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+        """Transform vertices by a 4x4 transformation matrix."""
+        ones = np.ones((len(verts), 1), dtype=np.float32)
+        h = np.concatenate([verts, ones], axis=1)
+        return (matrix @ h.T).T[:, :3].astype(np.float32)
+
+    @staticmethod
+    def colorize_vertices(verts: np.ndarray, color: np.ndarray) -> np.ndarray:
+        """Add a color to each vertex, returning combined vertex+color array."""
+        colors = np.tile(color, (len(verts), 1)).astype(np.float32)
+        return np.concatenate([verts, colors], axis=1)

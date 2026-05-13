@@ -3,7 +3,7 @@ import pyglet
 import numpy as np
 from vizcore.bus.data_bus import DataBus
 from vizcore.window.window import Window
-from vizcore.widget.kinematicFrame import KinematicFrame
+from vizcore.components.visualization.kinematicFrame import KinematicFrame
 
 def main():
     width, height = 800, 600

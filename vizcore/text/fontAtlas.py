@@ -93,9 +93,9 @@ class TextRenderer:
 
     def load_shader(self):
         # Loads the text.frag and text.vert shaders and creates a ModernGL program
-        with open("vizcore/text/text.vert", "r") as vert_file:
+        with open("vizcore/shaders/text.vert", "r") as vert_file:
             vert_shader = vert_file.read()
-        with open("vizcore/text/text.frag", "r") as frag_file:
+        with open("vizcore/shaders/text.frag", "r") as frag_file:
             frag_shader = frag_file.read()
 
         self._prog = self.window.ctx.program(

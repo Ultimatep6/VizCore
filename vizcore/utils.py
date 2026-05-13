@@ -58,12 +58,34 @@ def get_scale_matrix(sx=1, sy=1, sz=1) -> np.ndarray:
     )
 
 
-def get_rot_matrix(angle, axis: np.ndarray) -> np.ndarray:
+def get_rot_matrix(angle, axis: np.ndarray, dim: bool = False) -> np.ndarray:
     """
     Get the rotation matrix for a single axis rotation given in radians
     """
     c, s = np.cos(angle), np.sin(angle)
     x, y, z = axis
+    if dim:
+        return np.array(
+            [
+                [
+                    c + x * x * (1 - c),
+                    x * y * (1 - c) - z * s,
+                    x * z * (1 - c) + y * s,
+                ],
+                [
+                    y * x * (1 - c) + z * s,
+                    c + y * y * (1 - c),
+                    y * z * (1 - c) - x * s,
+                ],
+                [
+                    z * x * (1 - c) - y * s,
+                    z * y * (1 - c) + x * s,
+                    c + z * z * (1 - c),
+                ],
+            ],
+            dtype=np.float32,
+        )
+
     return np.array(
         [
             [c + x * x * (1 - c), x * y * (1 - c) - z * s, x * z * (1 - c) + y * s, 0],
@@ -115,6 +137,19 @@ def get_view_matrix(eye, target, up=np.array([0, 1, 0], dtype=np.float32)):
         ],
         dtype=np.float32,
     )
+
+
+def transform_vertices(verts: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """Transform vertices by a 4x4 transformation matrix."""
+    ones = np.ones((len(verts), 1), dtype=np.float32)
+    h = np.concatenate([verts, ones], axis=1)
+    return (matrix @ h.T).T[:, :3].astype(np.float32)
+
+
+def colorize_vertices(verts: np.ndarray, color: np.ndarray) -> np.ndarray:
+    """Add a color to each vertex, returning combined vertex+color array."""
+    colors = np.tile(color, (len(verts), 1)).astype(np.float32)
+    return np.concatenate([verts, colors], axis=1)
 
 
 def get_perspective_matrix(fov_y_deg: float, aspect: float, near: float, far: float):

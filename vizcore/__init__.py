@@ -8,8 +8,9 @@ Core Conventions:
   where +X is right, +Y is up, and -Z is forward (into the screen).
 """
 
-## Core exports
-# from .bus.data_bus import DataBus
+# Core exports
+from .bus.data_bus import DataBus
+
 # from .bus.ring_buffer import RingBuffer
 # from .widget.baseWidget import BaseWidget
 # from .widget.kinematicFrame import KinematicFrame

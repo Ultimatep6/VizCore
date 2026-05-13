@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pyglet
 
-from vizcore.widget.baseWidget import BaseWidget
+from vizcore.components.base.baseWidget import BaseWidget
 
 class DataTree(BaseWidget):
     """
@@ -58,9 +58,9 @@ class DataTree(BaseWidget):
         self._renderer = renderer
         self._text_renderer = getattr(renderer, 'text_renderer', None)
         
-        # Load custom shaders - updated path
-        widget_dir = os.path.dirname(os.path.abspath(__file__))
-        shader_dir = os.path.join(widget_dir, 'shaders')
+        # Load custom shaders from root shaders folder
+        vizcore_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        shader_dir = os.path.join(vizcore_root, 'shaders')
         
         with open(os.path.join(shader_dir, 'datatree_box.vert'), 'r') as f:
             v_src = f.read()
@@ -83,7 +83,24 @@ class DataTree(BaseWidget):
         ], dtype='f4')
         self.vbo_quad = renderer.ctx.buffer(quad)
         self.vao_box = renderer.ctx.simple_vertex_array(self.prog_box, self.vbo_quad, 'in_vert')
-        
+
+    def bind_camera(self, camera):
+        self.camera = camera
+
+    @property
+    def use_camera(self) -> bool:
+        return True
+
+    def get_camera_config(self) -> dict:
+        return {
+            "eye": np.array([0.0, 0.0, 1.0], dtype=np.float32),
+            "target": np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            "fov_y_deg": 45,
+            "enable_keyboard": False,
+            "near": 0.01,
+            "far": 100.0,
+        }
+
     def on_mouse_press(self, local_x, local_y, button, modifiers):
         if button == pyglet.window.mouse.LEFT:
             for path, (x, y, w, h) in self.node_hitboxes.items():

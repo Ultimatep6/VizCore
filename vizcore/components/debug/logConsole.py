@@ -3,15 +3,18 @@ import collections
 import itertools
 from datetime import datetime
 
-from vizcore.widget.baseWidget import BaseWidget
+import numpy as np
+
+from vizcore.components.base.baseWidget import BaseWidget
 from vizcore.text.fontAtlas import FontAtlas, TextRenderer
+
 
 class LogConsole(BaseWidget):
     """
     A widget that displays a scrollable log of text messages, useful for debugging or showing system status.
     It accepts signals containing string messages and renders them in a console-like format.
     The widget maintains a history of messages and supports basic text formatting.
-    Must be time-stamped    
+    Must be time-stamped
     """
 
     CHANNELS = ("INFO", "WARN", "ERROR", "DEBUG")
@@ -25,13 +28,13 @@ class LogConsole(BaseWidget):
 
         # 1. Data Storage: Deque prevents infinite memory growth
         self.logs = collections.deque(maxlen=max_history)
-        
+
         # 2. Scrolling State
         self.scroll_offset = 0  # Index of the top-most visible log
-        self.auto_scroll = True # Snap to bottom when new logs arrive
+        self.auto_scroll = True  # Snap to bottom when new logs arrive
         self.visible_lines = 1
         self._channel_history_lengths = {level: 0 for level in self.CHANNELS}
-        
+
         # 3. Layout & Typography
         self.font_scale = 0.46
         self.line_height = 28  # Base pixels per line
@@ -40,10 +43,10 @@ class LogConsole(BaseWidget):
 
         # 4. Styling
         self.level_colors = {
-            "INFO": (0.8, 0.8, 0.8, 1.0),    # Light Grey
-            "WARN": (0.9, 0.8, 0.2, 1.0),    # Yellow
-            "ERROR": (0.9, 0.2, 0.2, 1.0),   # Red
-            "DEBUG": (0.1, 0.55, 1.0, 1.0)   # Strong Blue
+            "INFO": (0.8, 0.8, 0.8, 1.0),  # Light Grey
+            "WARN": (0.9, 0.8, 0.2, 1.0),  # Yellow
+            "ERROR": (0.9, 0.2, 0.2, 1.0),  # Red
+            "DEBUG": (0.1, 0.55, 1.0, 1.0),  # Strong Blue
         }
 
     @property
@@ -114,16 +117,19 @@ class LogConsole(BaseWidget):
 
     def bind_renderer(self, renderer):
         self._renderer = renderer
-        self._text_renderer = getattr(renderer, 'text_renderer', None)
+        self._text_renderer = getattr(renderer, "text_renderer", None)
 
         if self._logger_text_renderer is None:
+
             class _LoggerTextWindow:
                 def __init__(self, ctx):
                     self.ctx = ctx
                     self.texture = None
 
             logger_window = _LoggerTextWindow(renderer.ctx)
-            hack_atlas = FontAtlas(font_path="vizcore/text/data/Hack-Regular.ttf", font_size=42)
+            hack_atlas = FontAtlas(
+                font_path="vizcore/text/data/Hack-Regular.ttf", font_size=42
+            )
             self._logger_text_renderer = TextRenderer(logger_window, hack_atlas)
 
         self._text_renderer = self._logger_text_renderer
@@ -131,9 +137,23 @@ class LogConsole(BaseWidget):
     def bind_camera(self, camera):
         self.camera = camera
 
+    @property
+    def use_camera(self) -> bool:
+        return True
+
+    def get_camera_config(self) -> dict:
+        return {
+            "eye": np.array([0.0, 0.0, 1.0], dtype=np.float32),
+            "target": np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            "fov_y_deg": 45,
+            "enable_keyboard": False,
+            "near": 0.01,
+            "far": 100.0,
+        }
+
     def update(self):
         """Fetch new logs from DataBus fixed channels (INFO/WARN/ERROR/DEBUG)."""
-        if not hasattr(self, 'data_bus') or self.data_bus is None:
+        if not hasattr(self, "data_bus") or self.data_bus is None:
             return
 
         appended_any = False
@@ -182,9 +202,9 @@ class LogConsole(BaseWidget):
         # Disable auto-scroll if the user scrolls up
         if scroll_y > 0:
             self.auto_scroll = False
-            
+
         # Adjust offset (scroll_y is usually 1 or -1)
-        self.scroll_offset -= int(scroll_y * 3) # Scroll 3 lines per tick
+        self.scroll_offset -= int(scroll_y * 3)  # Scroll 3 lines per tick
 
         max_offset = max(0, len(self.logs) - 1)
         # Clamp scrolling bounds
@@ -213,9 +233,11 @@ class LogConsole(BaseWidget):
         usable_height = max(1.0, self.camera.height - (2 * self.margin))
         visible_lines = max(1, int(usable_height / max(1.0, scaled_line_height)))
         self.visible_lines = visible_lines
-        
+
         usable_width = max(1.0, self.camera.width - (2 * self.margin))
-        char_width = max(1.0, 42.0 * txt_scale * 0.58)  # Approximate character width for monospace Hack font
+        char_width = max(
+            1.0, 42.0 * txt_scale * 0.58
+        )  # Approximate character width for monospace Hack font
         dynamic_wrap_chars = max(10, int(usable_width / char_width))
 
         if not self.logs:
@@ -230,17 +252,19 @@ class LogConsole(BaseWidget):
             for log in reversed(self.logs):
                 text_str = f"[{log['time']}] {log['level']}: {log['message']}"
                 wrapped = self._wrap_message(text_str, dynamic_wrap_chars)
-                
-                log_height = len(wrapped) * scaled_line_height + scaled_line_height * 0.25
-                
+
+                log_height = (
+                    len(wrapped) * scaled_line_height + scaled_line_height * 0.25
+                )
+
                 draw_items.appendleft((None, scaled_line_height * 0.25))
                 for line in reversed(wrapped):
-                    draw_items.appendleft((log['level'], line))
+                    draw_items.appendleft((log["level"], line))
 
                 accumulated_height += log_height
                 if accumulated_height >= usable_height:
                     break
-                    
+
             if accumulated_height > usable_height:
                 current_y = self.margin - (accumulated_height - usable_height)
             else:
@@ -251,16 +275,18 @@ class LogConsole(BaseWidget):
             for log in itertools.islice(self.logs, self.scroll_offset, len(self.logs)):
                 text_str = f"[{log['time']}] {log['level']}: {log['message']}"
                 wrapped = self._wrap_message(text_str, dynamic_wrap_chars)
-                
+
                 for line in wrapped:
-                    draw_items.append((log['level'], line))
+                    draw_items.append((log["level"], line))
                 draw_items.append((None, scaled_line_height * 0.25))
 
-                log_height = len(wrapped) * scaled_line_height + scaled_line_height * 0.25
+                log_height = (
+                    len(wrapped) * scaled_line_height + scaled_line_height * 0.25
+                )
                 accumulated_height += log_height
                 if accumulated_height >= usable_height:
                     break
-                    
+
             current_y = self.margin
 
         for item in draw_items:
@@ -269,16 +295,12 @@ class LogConsole(BaseWidget):
                 break
 
             if item[0] is not None:
-                # Text line: only draw if fully inside the top margin 
+                # Text line: only draw if fully inside the top margin
                 if current_y + scaled_line_height > self.margin:
                     level, text = item
                     color = self.level_colors.get(level, (1.0, 1.0, 1.0, 1.0))
                     self._text_renderer.render_text(
-                        text,
-                        self.margin,
-                        current_y,
-                        color=color,
-                        scale=txt_scale
+                        text, self.margin, current_y, color=color, scale=txt_scale
                     )
                 current_y += scaled_line_height
             else:
@@ -286,10 +308,3 @@ class LogConsole(BaseWidget):
                 current_y += item[1]
 
         renderer.ctx.enable(moderngl.DEPTH_TEST)
-
-
-
-
-
-        
-        

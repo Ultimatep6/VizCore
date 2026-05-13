@@ -13,6 +13,8 @@ class Camera:
         far: float = 100.0,
         move_speed: float = 0.1,
         mouse_sensitivity: float = 0.005,
+        enable_keyboard: bool = True,
+        invert_y: bool = False,
     ):
         self.target = np.array(target, dtype=np.float32)
         self.eye = np.array(eye, dtype=np.float32)
@@ -23,8 +25,11 @@ class Camera:
         self.aspect = window_size[0] / window_size[1]
         self.near = near
         self.far = far
+        self.enable_keyboard = enable_keyboard
+        self.invert_y = invert_y
 
         self.last_mouse_pos = None
+        self._drag_start_pos = None
         self.is_dragging = False
 
     def get_perspective(self):
@@ -34,6 +39,31 @@ class Camera:
             near=self.near,
             far=self.far,
         )
+
+    def update_aspect_ratio(self, width: int, height: int):
+        """Update camera aspect ratio when window size changes."""
+        self.window_size = (width, height)
+        self.aspect = width / height if height > 0 else 1.0
+
+    @property
+    def projection(self):
+        """Property for compatibility - returns perspective matrix."""
+        return self.get_perspective()
+
+    @property
+    def view(self):
+        """Property for compatibility - returns view matrix."""
+        return self.get_view()
+
+    @property
+    def width(self) -> int:
+        """Window width."""
+        return self.window_size[0]
+
+    @property
+    def height(self) -> int:
+        """Window height."""
+        return self.window_size[1]
 
     def get_view(self):
         return get_view_matrix(eye=self.eye, target=self.target)
@@ -56,6 +86,8 @@ class Camera:
         return np.array([0, 1, 0], dtype=np.float32)
 
     def on_key_press(self, keys, keys_pressed: set):
+        if not self.enable_keyboard:
+            return
         delta = np.zeros(3, dtype=np.float32)
         # World-space movement
         if keys.W in keys_pressed:
@@ -63,9 +95,9 @@ class Camera:
         if keys.S in keys_pressed:
             delta[0] -= self.move_speed
         if keys.D in keys_pressed:
-            delta[2] -= self.move_speed
-        if keys.A in keys_pressed:
             delta[2] += self.move_speed
+        if keys.A in keys_pressed:
+            delta[2] -= self.move_speed
         if keys.E in keys_pressed:
             delta[1] += self.move_speed
         if keys.Q in keys_pressed:
@@ -73,44 +105,38 @@ class Camera:
         self.eye += delta
         self.target += delta
 
-    def _axis_angle_rotation(self, axis: np.ndarray, angle: float) -> np.ndarray:
-        c, s = np.cos(angle), np.sin(angle)
-        x, y, z = axis
-        return np.array(
-            [
-                [c + x * x * (1 - c), x * y * (1 - c) - z * s, x * z * (1 - c) + y * s],
-                [y * x * (1 - c) + z * s, c + y * y * (1 - c), y * z * (1 - c) - x * s],
-                [z * x * (1 - c) - y * s, z * y * (1 - c) + x * s, c + z * z * (1 - c)],
-            ],
-            dtype=np.float32,
-        )
-
-    def on_mouse_press(self, button: int):
+    def on_mouse_press(self, button: int, x: int = 0, y: int = 0):
         if button == 1:
             self.is_dragging = True
+            self._drag_start_pos = (x, y)
 
     def on_mouse_release(self, button: int):
         if button == 1:
             self.is_dragging = False
+            self._drag_start_pos = None
             self.last_mouse_pos = None
 
     def on_mouse_drag(self, x: int, y: int):
         if not self.is_dragging:
             return
 
-        if self.last_mouse_pos is not None:
-            dx = x - self.last_mouse_pos[0]
-            dy = y - self.last_mouse_pos[1]
+        if self._drag_start_pos is None:
+            self._drag_start_pos = (x, y)
+            return
 
-            eye_to_target = self.target - self.eye
-            right = np.cross(eye_to_target, np.array([0, 1, 0], dtype=np.float32))
-            right /= np.linalg.norm(right) + 1e-6
+        dx = x - self._drag_start_pos[0]
+        dy = y - self._drag_start_pos[1]
 
-            Rx = self._axis_angle_rotation(right, -dy * self.mouse_sensitivity)
-            Ry = self._axis_angle_rotation(
-                np.array([0, 1, 0]), -dx * self.mouse_sensitivity
-            )
+        self._drag_start_pos = (x, y)
 
-            self.target = self.eye + (Ry @ Rx) @ eye_to_target
+        if self.invert_y:
+            dy = -dy
 
-        self.last_mouse_pos = (x, y)
+        eye_to_target = self.target - self.eye
+        right = np.cross(eye_to_target, np.array([0, 1, 0], dtype=np.float32))
+        right /= np.linalg.norm(right) + 1e-6
+
+        Rx = get_rot_matrix(-dy * self.mouse_sensitivity, right, dim=True)
+        Ry = get_rot_matrix(-dx * self.mouse_sensitivity, Y_AXIS, dim=True)
+
+        self.target = self.eye + (Ry @ Rx) @ eye_to_target
