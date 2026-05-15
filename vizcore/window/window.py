@@ -146,19 +146,19 @@ class Window:
         self.data_bus.push_payload(initial_state)
 
     def bind_widget_to_tile(self, tile_idx, widget: BaseWidget):
-        widget.bind_renderer(self._renderer)
         tile = self.tile_manager.tiles[tile_idx]
-        # Only bind camera if widget uses camera
-        if widget.use_camera:
-            camera_config = widget.get_camera_config()
-            camera_config["window_size"] = (tile.width, tile.height)
-            widget.bind_camera(Camera(**camera_config))
         # Store tile index and position for widgets that need mouse input
         widget._tile_index = tile_idx
         widget._tile_x = tile.x
         widget._tile_y = tile.y
         widget._tile_width = tile.width
         widget._tile_height = tile.height
+        widget.bind_renderer(self._renderer)
+        # Only bind camera if widget uses camera
+        if widget.use_camera:
+            camera_config = widget.get_camera_config()
+            camera_config["window_size"] = (tile.width, tile.height)
+            widget.bind_camera(Camera(**camera_config))
         self.tile_manager.tiles[tile_idx].widget = widget
 
     def render(self):

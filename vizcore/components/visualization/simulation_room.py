@@ -20,7 +20,7 @@ class SimulationRoomWidget(BaseWidget):
     """
 
     def __init__(self, initial_size=10.0, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__()
 
         self.room_center = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         self.room_size = initial_size
@@ -52,25 +52,25 @@ class SimulationRoomWidget(BaseWidget):
         shader_manager.load_shader(
             "room_grid",
             vertex_path="vizcore/shaders/room_grid.vert",
-            fragment_path="vizcore/shaders/room_grid.frag"
+            fragment_path="vizcore/shaders/room_grid.frag",
         )
         shader_manager.load_shader(
             "cube",
             vertex_path="vizcore/shaders/cube.vert",
-            fragment_path="vizcore/shaders/cube.frag"
+            fragment_path="vizcore/shaders/cube.frag",
         )
         shader_manager.load_shader(
             "axis",
             vertex_path="vizcore/shaders/axis.vert",
-            fragment_path="vizcore/shaders/axis.frag"
+            fragment_path="vizcore/shaders/axis.frag",
         )
 
     def bind_renderer(self, renderer):
         super().bind_renderer(renderer)
+        self.load_shaders(renderer.shader_manager)
 
         self._setup_cameras()
         self._setup_grid_geometry()
-        self._setup_cube_geometry()
         self._setup_axis_geometry()
 
         if os.environ.get("SIMULATION_ROOM_TEST") == "1":
@@ -102,77 +102,123 @@ class SimulationRoomWidget(BaseWidget):
     def _setup_grid_geometry(self):
         half_size = self.room_size * 0.5
 
-        floor = np.array([
-            [-half_size, 0.0, -half_size],
-            [half_size, 0.0, -half_size],
-            [half_size, 0.0, half_size],
-            [-half_size, 0.0, -half_size],
-            [half_size, 0.0, half_size],
-            [-half_size, 0.0, half_size],
-        ], dtype=np.float32)
+        floor = np.array(
+            [
+                [-half_size, 0.0, -half_size],
+                [half_size, 0.0, -half_size],
+                [half_size, 0.0, half_size],
+                [-half_size, 0.0, -half_size],
+                [half_size, 0.0, half_size],
+                [-half_size, 0.0, half_size],
+            ],
+            dtype=np.float32,
+        )
 
-        wall_pos_x = np.array([
-            [half_size, 0.0, -half_size],
-            [half_size, self.room_size, -half_size],
-            [half_size, self.room_size, half_size],
-            [half_size, 0.0, -half_size],
-            [half_size, self.room_size, half_size],
-            [half_size, 0.0, half_size],
-        ], dtype=np.float32)
+        wall_pos_x = np.array(
+            [
+                [half_size, 0.0, -half_size],
+                [half_size, self.room_size, -half_size],
+                [half_size, self.room_size, half_size],
+                [half_size, 0.0, -half_size],
+                [half_size, self.room_size, half_size],
+                [half_size, 0.0, half_size],
+            ],
+            dtype=np.float32,
+        )
 
-        wall_neg_x = np.array([
-            [-half_size, 0.0, half_size],
-            [-half_size, self.room_size, half_size],
-            [-half_size, self.room_size, -half_size],
-            [-half_size, 0.0, half_size],
-            [-half_size, self.room_size, -half_size],
-            [-half_size, 0.0, -half_size],
-        ], dtype=np.float32)
+        wall_neg_x = np.array(
+            [
+                [-half_size, 0.0, half_size],
+                [-half_size, self.room_size, half_size],
+                [-half_size, self.room_size, -half_size],
+                [-half_size, 0.0, half_size],
+                [-half_size, self.room_size, -half_size],
+                [-half_size, 0.0, -half_size],
+            ],
+            dtype=np.float32,
+        )
 
-        wall_pos_z = np.array([
-            [-half_size, 0.0, half_size],
-            [half_size, 0.0, half_size],
-            [half_size, self.room_size, half_size],
-            [-half_size, 0.0, half_size],
-            [half_size, self.room_size, half_size],
-            [-half_size, self.room_size, half_size],
-        ], dtype=np.float32)
+        wall_pos_z = np.array(
+            [
+                [-half_size, 0.0, half_size],
+                [half_size, 0.0, half_size],
+                [half_size, self.room_size, half_size],
+                [-half_size, 0.0, half_size],
+                [half_size, self.room_size, half_size],
+                [-half_size, self.room_size, half_size],
+            ],
+            dtype=np.float32,
+        )
 
-        wall_neg_z = np.array([
-            [half_size, 0.0, -half_size],
-            [-half_size, 0.0, -half_size],
-            [-half_size, self.room_size, -half_size],
-            [half_size, 0.0, -half_size],
-            [-half_size, self.room_size, -half_size],
-            [half_size, self.room_size, -half_size],
-        ], dtype=np.float32)
+        wall_neg_z = np.array(
+            [
+                [half_size, 0.0, -half_size],
+                [-half_size, 0.0, -half_size],
+                [-half_size, self.room_size, -half_size],
+                [half_size, 0.0, -half_size],
+                [-half_size, self.room_size, -half_size],
+                [half_size, self.room_size, -half_size],
+            ],
+            dtype=np.float32,
+        )
 
-        vertices = np.concatenate([floor, wall_pos_x, wall_neg_x, wall_pos_z, wall_neg_z], axis=0)
+        vertices = np.concatenate(
+            [floor, wall_pos_x, wall_neg_x, wall_pos_z, wall_neg_z], axis=0
+        )
         self._grid_vbo = self._renderer.ctx.buffer(vertices.astype("f4"))
+        grid_program = self._renderer.shader_manager.get_shader("room_grid")
         self._grid_vao = self._renderer.ctx.vertex_array(
-            None,
+            grid_program,
             [(self._grid_vbo, "3f", "in_position")],
         )
 
     def _setup_cube_geometry(self):
         half = 0.5
-        cube_verts = np.array([
-            [-half, -half, half], [half, -half, half], [half, half, half],
-            [-half, -half, half], [half, half, half], [-half, half, half],
-            [half, -half, -half], [-half, -half, -half], [-half, half, -half],
-            [half, -half, -half], [-half, half, -half], [half, half, -half],
-            [-half, half, -half], [-half, half, half], [half, half, half],
-            [-half, half, -half], [half, half, half], [half, half, -half],
-            [-half, -half, half], [-half, -half, -half], [half, -half, -half],
-            [-half, -half, half], [half, -half, -half], [half, -half, half],
-            [half, -half, half], [half, -half, -half], [half, half, -half],
-            [half, -half, half], [half, half, -half], [half, half, half],
-            [-half, -half, -half], [-half, -half, half], [-half, half, half],
-            [-half, -half, -half], [-half, half, -half], [-half, half, half],
-        ], dtype=np.float32)
+        cube_verts = np.array(
+            [
+                [-half, -half, half],
+                [half, -half, half],
+                [half, half, half],
+                [-half, -half, half],
+                [half, half, half],
+                [-half, half, half],
+                [half, -half, -half],
+                [-half, -half, -half],
+                [-half, half, -half],
+                [half, -half, -half],
+                [-half, half, -half],
+                [half, half, -half],
+                [-half, half, -half],
+                [-half, half, half],
+                [half, half, half],
+                [-half, half, -half],
+                [half, half, half],
+                [half, half, -half],
+                [-half, -half, half],
+                [-half, -half, -half],
+                [half, -half, -half],
+                [-half, -half, half],
+                [half, -half, -half],
+                [half, -half, half],
+                [half, -half, half],
+                [half, -half, -half],
+                [half, half, -half],
+                [half, -half, half],
+                [half, half, -half],
+                [half, half, half],
+                [-half, -half, -half],
+                [-half, -half, half],
+                [-half, half, half],
+                [-half, -half, -half],
+                [-half, half, -half],
+                [-half, half, half],
+            ],
+            dtype=np.float32,
+        )
         self._cube_vbo = self._renderer.ctx.buffer(cube_verts.astype("f4"))
+        cube_program = self._renderer.shader_manager.get_shader("cube")
         self._cube_vao = self._renderer.ctx.vertex_array(
-            None,
+            cube_program,
             [(self._cube_vbo, "3f", "in_position")],
         )
 
@@ -184,18 +230,21 @@ class SimulationRoomWidget(BaseWidget):
             head_height=0.1,
             segments=16,
             colors={
-                'x': np.array([0.9, 0.2, 0.2, 1.0], dtype=np.float32),
-                'y': np.array([0.2, 0.85, 0.2, 1.0], dtype=np.float32),
-                'z': np.array([0.2, 0.4, 0.95, 1.0], dtype=np.float32),
-            }
+                "x": np.array([0.9, 0.2, 0.2, 1.0], dtype=np.float32),
+                "y": np.array([0.2, 0.85, 0.2, 1.0], dtype=np.float32),
+                "z": np.array([0.2, 0.4, 0.95, 1.0], dtype=np.float32),
+            },
         )
 
         self._axis_vert_vbo = self._renderer.ctx.buffer(basis_verts[:, :3].astype("f4"))
-        self._axis_color_vbo = self._renderer.ctx.buffer(basis_verts[:, 3:].astype("f4"))
+        self._axis_color_vbo = self._renderer.ctx.buffer(
+            basis_verts[:, 3:].astype("f4")
+        )
         self._axis_ibo = self._renderer.ctx.buffer(basis_inds.astype("f4"))
 
+        axis_program = self._renderer.shader_manager.get_shader("axis")
         self._axis_vao = self._renderer.ctx.vertex_array(
-            None,
+            axis_program,
             [
                 (self._axis_vert_vbo, "3f", "in_vert"),
                 (self._axis_color_vbo, "3f", "in_color"),
@@ -211,22 +260,24 @@ class SimulationRoomWidget(BaseWidget):
             return
 
         viz_window = self._renderer.application
-        mouse_x = getattr(viz_window, 'mouse_x', 0)
-        mouse_y = getattr(viz_window, 'mouse_y', 0)
+        mouse_x = getattr(viz_window, "mouse_x", 0)
+        mouse_y = getattr(viz_window, "mouse_y", 0)
 
-        tile_x = getattr(self, '_tile_x', None)
+        tile_x = getattr(self, "_tile_x", None)
         if tile_x is None:
             return
 
-        self._focused = (tile_x <= mouse_x <= tile_x + self._tile_width and
-                        self._tile_y <= mouse_y <= self._tile_y + self._tile_height)
+        self._focused = (
+            tile_x <= mouse_x <= tile_x + self._tile_width
+            and self._tile_y <= mouse_y <= self._tile_y + self._tile_height
+        )
 
         if not self._focused:
             return
 
-        keys = getattr(viz_window, 'keys_pressed', set())
-        if hasattr(viz_window, 'wnd') and hasattr(viz_window.wnd, 'keys'):
-            if hasattr(viz_window.wnd.keys, 'A') and hasattr(viz_window.wnd.keys, 'D'):
+        keys = getattr(viz_window, "keys_pressed", set())
+        if hasattr(viz_window, "wnd") and hasattr(viz_window.wnd, "keys"):
+            if hasattr(viz_window.wnd.keys, "A") and hasattr(viz_window.wnd.keys, "D"):
                 a_key = viz_window.wnd.keys.A
                 d_key = viz_window.wnd.keys.D
                 if a_key in keys:
@@ -251,25 +302,44 @@ class SimulationRoomWidget(BaseWidget):
 
         if self._grid_vao:
             renderer.set_uniform("room_grid", "mvp", mvp.astype("f4").T.tobytes())
-            renderer.set_uniform("room_grid", "gRoomCenter", self.room_center.astype("f4").tobytes())
-            renderer.set_uniform("room_grid", "gRoomSize", np.array([self.room_size], dtype="f4").tobytes())
+            renderer.set_uniform(
+                "room_grid", "gRoomCenter", self.room_center.astype("f4").tobytes()
+            )
+            renderer.set_uniform(
+                "room_grid",
+                "gRoomSize",
+                np.array([self.room_size], dtype="f4").tobytes(),
+            )
             renderer.draw("room_grid", [(self._grid_vbo, "3f", "in_position")], None)
 
         if self._cube_vao and self.assets:
             renderer.set_uniform("cube", "mvp", mvp.astype("f4").T.tobytes())
             for asset in self.assets:
-                renderer.set_uniform("cube", "uOffset", asset["position"].astype("f4").tobytes())
-                renderer.set_uniform("cube", "uScale", np.array([asset["size"]], dtype="f4").tobytes())
-                renderer.set_uniform("cube", "uColor", asset["color"].astype("f4").tobytes())
+                renderer.set_uniform(
+                    "cube", "uOffset", asset["position"].astype("f4").tobytes()
+                )
+                renderer.set_uniform(
+                    "cube", "uScale", np.array([asset["size"]], dtype="f4").tobytes()
+                )
+                renderer.set_uniform(
+                    "cube", "uColor", asset["color"].astype("f4").tobytes()
+                )
                 renderer.draw("cube", [(self._cube_vbo, "3f", "in_position")], None)
 
         if self._axis_vao:
             renderer.set_uniform("axis", "mvp", mvp.astype("f4").T.tobytes())
             axis_scale = (self.room_size / 10.0) * 1.5
-            renderer.set_uniform("axis", "uScale", np.array([axis_scale], dtype="f4").tobytes())
-            renderer.draw("axis",
-                         [(self._axis_vert_vbo, "3f", "in_vert"), (self._axis_color_vbo, "3f", "in_color")],
-                         self._axis_ibo)
+            renderer.set_uniform(
+                "axis", "uScale", np.array([axis_scale], dtype="f4").tobytes()
+            )
+            renderer.draw(
+                "axis",
+                [
+                    (self._axis_vert_vbo, "3f", "in_vert"),
+                    (self._axis_color_vbo, "3f", "in_color"),
+                ],
+                self._axis_ibo,
+            )
 
         renderer.ctx.disable(moderngl.DEPTH_TEST)
 
@@ -303,11 +373,13 @@ class SimulationRoomWidget(BaseWidget):
         self._setup_grid_geometry()
 
     def add_cube(self, position, color, size):
-        self.assets.append({
-            "position": np.array(position, dtype=np.float32),
-            "color": np.array(color, dtype=np.float32),
-            "size": size
-        })
+        self.assets.append(
+            {
+                "position": np.array(position, dtype=np.float32),
+                "color": np.array(color, dtype=np.float32),
+                "size": size,
+            }
+        )
 
         positions = [asset["position"] for asset in self.assets]
         self.compute_room_bounds(positions)

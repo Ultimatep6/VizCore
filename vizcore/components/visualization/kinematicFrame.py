@@ -113,7 +113,7 @@ class KinematicFrame(BaseWidget):
 
     def get_camera_config(self) -> dict:
         return {
-            "eye": np.array([0.0, 0.0, 2.5], dtype=np.float32),
+            "eye": np.array([0.0, 1.0, 2.5], dtype=np.float32),
             "target": np.array([0.0, 0.0, 0.0], dtype=np.float32),
             "fov_y_deg": 45,
             "enable_keyboard": False,
