@@ -1,11 +1,12 @@
 #version 330 core
 
-#define SEGMENTS 24
 #define PI 3.14159265359
+#define MAX_INSTANCES
+#define SEGMENTS
 
 uniform mat4 u_vp;
-uniform mat4 u_models[16];
-uniform vec3 u_colors[16];
+uniform mat4 u_models[MAX_INSTANCES];
+uniform vec3 u_colors[MAX_INSTANCES];
 
 out vec3 v_color;
 
