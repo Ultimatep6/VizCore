@@ -21,22 +21,23 @@ _SHADER_DIR = os.path.join(os.path.dirname(__file__), "shaders")
 
 
 class TileManager:
-    def __init__(self, width, height, mainWindow):
-        self.width = width
-        self.height = height
+    def __init__(self, mainWindow, shader_dir=None):
+        self.width = mainWindow.wnd.width
+        self.height = mainWindow.wnd.height
         self._init_tiles()
         self.hovered_index = None
         self.focus_index = None  # Start with the whole window focused
-        self.window_size = (width, height)
+        self.window_size = (self.width, self.height)
 
-        # Render Properties
+        sdir = shader_dir or _SHADER_DIR
         self.program = mainWindow.load_program(
-            vertex_shader=os.path.join(_SHADER_DIR, "tile_border.vert"),
-            fragment_shader=os.path.join(_SHADER_DIR, "tile_border.frag"),
+            vertex_shader=os.path.join(sdir, "tile_border.vert"),
+            fragment_shader=os.path.join(sdir, "tile_border.frag"),
             defines={
                 "RGB_BORDER": f"vec3({settings.BORDER_RGB[0]/255.0}, {settings.BORDER_RGB[1]/255.0}, {settings.BORDER_RGB[2]/255.0})",
                 "GLOW_FALLOFF": settings.GLOW_FALLOFF,
                 "BORDER_THICKNESS": settings.BORDER_THICKNESS,
+                "ALPHA_THRESH": settings.ALPHA_THRESH,
             },
         )
         # Reserve 16bytes for one tile rect (4 floats)

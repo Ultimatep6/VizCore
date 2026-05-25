@@ -11,5 +11,6 @@ TILE_MARGIN_Y = 10
 
 # Tile Borders
 BORDER_RGB = (153, 255, 255)
-BORDER_THICKNESS = 0.01
-GLOW_FALLOFF = 50.0
+BORDER_THICKNESS = 0.0005
+GLOW_FALLOFF = 100.0
+ALPHA_THRESH = 0.07  # Changes the black margin between border and widget

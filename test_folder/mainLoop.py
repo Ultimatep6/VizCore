@@ -1,6 +1,7 @@
 from moderngl_window import create_window_config_instance, run_window_config_instance
 import numpy as np
 
+from settings_gui.guiRenderer import GuiRenderer
 from window.mainWindow import SimulationRoom
 from tile_management.tile import TileManager, Tile
 
@@ -11,6 +12,7 @@ class MainLoopHandler:
         self._mouseY = 0.0
         self._ctrl_pressed = False
         self.dashboardInstance = None
+        self.guiRenderer = None
 
     def attach_simulation(self, simulation: object):
         if not callable(getattr(simulation, "run", None)):
@@ -24,7 +26,8 @@ class MainLoopHandler:
     def run(self):
         self.dashboardInstance = create_window_config_instance(SimulationRoom)
         wnd = self.dashboardInstance.wnd
-        self.tileManager = TileManager(wnd.width, wnd.height, self.dashboardInstance)
+        self.tileManager = TileManager(self.dashboardInstance)
+        self.guiRenderer = GuiRenderer(self.dashboardInstance)
 
         # MainWindow Callables
         def on_mouse(x, y, dx, dy):

@@ -3,7 +3,6 @@ import moderngl
 from types import SimpleNamespace
 import numpy as np
 import moderngl_window as mglw
-from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
 import os
 import sys
 
