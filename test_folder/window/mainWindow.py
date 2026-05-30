@@ -52,6 +52,7 @@ class SimulationRoom(mglw.WindowConfig):
 
         # Callbacks
         self.callbacks = SimpleNamespace()
+        self.render_callbacks = SimpleNamespace()
         self.ctrl_pressed = False
 
         self._load_all_shaders()
@@ -351,6 +352,21 @@ class SimulationRoom(mglw.WindowConfig):
         if cb := getattr(self.callbacks, "on_key_press", None):
             cb(self.ctrl_pressed)
 
+        if cb := getattr(self.callbacks, "on_key_event", None):
+            cb(key, action, modifiers)
+
+    def on_mouse_press_event(self, x, y, button):
+        if cb := getattr(self.callbacks, "on_mouse_press", None):
+            cb(x, y, button)
+
+    def on_mouse_release_event(self, x, y, button):
+        if cb := getattr(self.callbacks, "on_mouse_release", None):
+            cb(x, y, button)
+
+    def on_mouse_drag_event(self, x, y, dx, dy):
+        if cb := getattr(self.callbacks, "on_mouse_drag", None):
+            cb(x, y, dx, dy)
+
     def on_mouse_position_event(self, x, y, dx, dy):
         if cb := getattr(self.callbacks, "on_mouse", None):
             cb(x, y, dx, dy)
@@ -375,6 +391,11 @@ class SimulationRoom(mglw.WindowConfig):
             # None Main Window functions
             if cb := getattr(self.callbacks, "on_scroll", None):
                 cb(x_offset, y_offset)
+
+    def on_resize(self, width, height):
+        self.ctx.viewport = (0, 0, width, height)
+        if cb := getattr(self.callbacks, "on_resize", None):
+            cb(width, height)
 
     def on_render(self, time, frame_time):
 
@@ -436,5 +457,8 @@ class SimulationRoom(mglw.WindowConfig):
                 moderngl.TRIANGLES, self.axis_vert_count, instances=settings.MAX_ARROWS
             )
 
-        if cb := getattr(self.callbacks, "render_tileManager", None):
+        if cb := getattr(self.render_callbacks, "render_tileManager", None):
+            cb()
+
+        if cb := getattr(self.render_callbacks, "render_guiManager", None):
             cb()
