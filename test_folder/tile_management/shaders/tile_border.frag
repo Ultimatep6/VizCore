@@ -1,8 +1,8 @@
 #version 330
 
 #define RGB_BORDER vec3(0.05, 0.45, 1.0)
-#define BORDER_THICKNESS = 0.04
-#define GLOW_FALLOFF = 35.0
+#define BORDER_THICKNESS 0.04
+#define GLOW_FALLOFF 35.0
 
 in vec2  v_uv;
 

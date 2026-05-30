@@ -1,4 +1,5 @@
 from moderngl_window import create_window_config_instance, run_window_config_instance
+import moderngl
 import numpy as np
 
 from settings_gui.guiManager import GuiManager
@@ -32,7 +33,6 @@ class MainLoopHandler:
         self.tileManager = TileManager(self.dashboardInstance)
         self.guiManager = GuiManager(self.dashboardInstance)
 
-        # MainWindow Callables
         def on_mouse(x, y, dx, dy):
             self._mouseX, self._mouseY = x, y
             self.guiManager.on_mouse_move(x, y, dx, dy)
@@ -97,13 +97,21 @@ class MainLoopHandler:
             self.tileManager = TileManager(self.dashboardInstance)
 
         def render_tileManager():
-            if self._ctrl_pressed:
-                self.tileManager.render()
+            if not self._ctrl_pressed:
+                return
+            ctx = self.dashboardInstance.ctx
+            ctx.disable(moderngl.DEPTH_TEST)
+            self.tileManager.render()
+            ctx.enable(moderngl.DEPTH_TEST)
 
         def render_guiManager():
+            if not self._ctrl_pressed:
+                return
+            ctx = self.dashboardInstance.ctx
+            ctx.disable(moderngl.DEPTH_TEST)
             self.guiManager.render()
+            ctx.enable(moderngl.DEPTH_TEST)
 
-        # MainWindow Callables Attached
         self.dashboardInstance.callbacks.on_mouse = on_mouse
         self.dashboardInstance.callbacks.on_key_press = on_key_press
         self.dashboardInstance.callbacks.on_tick = on_tick
@@ -121,5 +129,5 @@ class MainLoopHandler:
 
 
 if __name__ == "__main__":
-    main = MainLoopHandler(fullscreen=False)
+    main = MainLoopHandler(fullscreen=True)
     main.run()

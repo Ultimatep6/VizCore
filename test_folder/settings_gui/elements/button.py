@@ -24,7 +24,6 @@ class Button(GUIElement):
         self._label.x = self.x + self.w // 2
         self._label.y = self.y + self.h // 2
         self._label.draw()
-        self.draw_grip(renderer)
 
     def on_mouse_press(self, x, y, button):
         self.pressed = True

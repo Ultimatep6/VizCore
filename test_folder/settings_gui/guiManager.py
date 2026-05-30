@@ -17,11 +17,6 @@ class GuiManager:
         self._sub_levels = []
         self._captured = None
 
-        self._resizing_popup = False
-        self._popup_resize_start_w = 0
-        self._popup_resize_start_x = 0
-        self._popup_resize_initial_widths = []
-
         self.show_debug = False
         self._popup_tile = None
 
@@ -176,11 +171,6 @@ class GuiManager:
         bx, by, bw, bh = self._popup_bounds()
         self.renderer.quad(bx, by, bw, bh, (0.2, 0.2, 0.25))
         self.renderer.outline(bx, by, bw, bh, (0.4, 0.4, 0.5))
-        gx = bx + bw - 8
-        self.renderer.quad(gx, by + 2, 8, bh - 4, (0.3, 0.3, 0.35))
-        self.renderer.outline(gx, by, 8, bh, (0.5, 0.5, 0.6))
-        for i in range(3):
-            self.renderer.quad(gx + 2 + i * 2, by + 4, 1, bh - 8, (0.6, 0.6, 0.7))
         for e in self.popup_elements:
             if e.visible:
                 e.draw(self.renderer)
@@ -208,11 +198,6 @@ class GuiManager:
             if lx <= x <= lx + lw and ly <= fy <= ly + lh:
                 if button == 1:
                     for e in reversed(level["elements"]):
-                        if e.hit_test_grip(x, fy):
-                            e.start_resize(x)
-                            self._captured = e
-                            return True
-                    for e in reversed(level["elements"]):
                         if e.hit_test(x, fy):
                             e.on_mouse_press(x, fy, button)
                             self._captured = e
@@ -228,20 +213,6 @@ class GuiManager:
                 return True
             self._pop_top_level()
         bx, by, bw, bh = self._popup_bounds()
-        if button == 1 and bx + bw - 8 <= x <= bx + bw and by <= fy <= by + bh:
-            self._resizing_popup = True
-            self._popup_resize_start_x = x
-            content_l = min(e.x for e in self.popup_elements)
-            content_r = max(e.x + e.w for e in self.popup_elements)
-            self._popup_resize_start_w = content_r - content_l
-            self._popup_resize_initial_widths = [e.w for e in self.popup_elements]
-            return True
-        if button == 1:
-            for e in reversed(self.popup_elements):
-                if e.hit_test_grip(x, fy):
-                    e.start_resize(x)
-                    self._captured = e
-                    return True
         if bx <= x <= bx + bw and by <= fy <= by + bh:
             for e in reversed(self.popup_elements):
                 if e.hit_test(x, fy):
@@ -259,27 +230,13 @@ class GuiManager:
         return True
 
     def on_mouse_release(self, x, y, button):
-        if button == 1:
-            self._resizing_popup = False
-            if self._captured:
-                was_resizing = self._captured._resizing
-                self._captured.end_resize()
-                if not was_resizing:
-                    self._captured.on_mouse_release(x, self._flip(y), button)
-                self._captured = None
+        if self._captured:
+            self._captured.on_mouse_release(x, self._flip(y), button)
+            self._captured = None
 
     def on_mouse_drag(self, x, y, dx, dy):
-        if self._resizing_popup:
-            dx2 = x - self._popup_resize_start_x
-            new_bw = max(80, self._popup_resize_start_w + dx2)
-            scale = new_bw / self._popup_resize_start_w
-            for i, e in enumerate(self.popup_elements):
-                e.w = max(e.min_w, int(self._popup_resize_initial_widths[i] * scale))
-        elif self._captured:
-            if self._captured._resizing:
-                self._captured.do_resize(x)
-            else:
-                self._captured.on_mouse_drag(x, self._flip(y), dx, dy, 1)
+        if self._captured:
+            self._captured.on_mouse_drag(x, self._flip(y), dx, dy, 1)
 
     def on_mouse_move(self, x, y, dx, dy):
         if not self.popup_visible:

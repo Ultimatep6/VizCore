@@ -28,7 +28,6 @@ class Branch(GUIElement):
         gt.x = self.x + self.w - 12
         gt.y = self.y + self.h // 2
         gt.draw()
-        self.draw_grip(renderer)
 
     def on_mouse_press(self, x, y, button):
         self.pressed = True

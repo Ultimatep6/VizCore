@@ -406,7 +406,10 @@ class SimulationRoom(mglw.WindowConfig):
         vp = camera.get_vp()
 
         self.ctx.clear(0.0, 0.0, 0.0, 1.0)
+        self.ctx.color_mask = (True, True, True, True)
+        self.ctx.depth_mask = True
         self.ctx.disable(moderngl.DEPTH_TEST)
+        self.ctx.enable(moderngl.BLEND)
 
         # ---------------------- Grid Program Setup
         self.grid_program["gVp"].write(vp.astype("f4").T.tobytes())
@@ -443,7 +446,7 @@ class SimulationRoom(mglw.WindowConfig):
                 sx=axis_scale, sy=axis_scale, sz=axis_scale, rx=+np.pi / 2
             )
 
-            self.axis_program["u_vp"].write(vp.astype("f4").T.tobytes())
+            self.axis_program["u_vp"] = tuple(vp.astype("f4").T.ravel())
             self.axis_program["u_models"].write(
                 self.axis_instance_matrices.transpose(0, 2, 1)
                 .ravel()
@@ -457,8 +460,13 @@ class SimulationRoom(mglw.WindowConfig):
                 moderngl.TRIANGLES, self.axis_vert_count, instances=settings.MAX_ARROWS
             )
 
+        self.ctx.disable(moderngl.DEPTH_TEST)
+        self.ctx.depth_mask = False
+
         if cb := getattr(self.render_callbacks, "render_tileManager", None):
             cb()
 
         if cb := getattr(self.render_callbacks, "render_guiManager", None):
             cb()
+
+        self.ctx.depth_mask = True
