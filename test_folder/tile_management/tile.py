@@ -26,7 +26,7 @@ class TileManager:
         self.height = mainWindow.wnd.height
         self._init_tiles()
         self.hovered_index = None
-        self.focus_index = 0  # Start with the whole window focused
+        self.focus_index = 0 # Start with the whole window focused
         self.window_size = (self.width, self.height)
 
         sdir = shader_dir or _SHADER_DIR

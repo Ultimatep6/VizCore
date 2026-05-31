@@ -106,6 +106,7 @@ class SimulationRoom(mglw.WindowConfig):
             },
         )
 
+
     def _setup_grid_geometry(self):
         """Build the floor + two wall quads that are always opposite the active camera.
 
@@ -460,8 +461,9 @@ class SimulationRoom(mglw.WindowConfig):
                 moderngl.TRIANGLES, self.axis_vert_count, instances=settings.MAX_ARROWS
             )
 
+        # -------------------------- RENDER BLIPS
         if cb := getattr(self.render_callbacks, "render_nodes", None):
-            cb(vp)
+            cb(vp, camera.eye)
 
         self.ctx.disable(moderngl.DEPTH_TEST)
         self.ctx.depth_mask = False

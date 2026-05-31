@@ -26,26 +26,25 @@ class Particle(SimNode):
         ]
 
 
+class StaticNode(SimNode):
+    position = Signal([0.0, 0.0, 0.0])
+
+    def __init__(self, name, pos):
+        super().__init__(name)
+        self.position = pos
+
+
 class ExampleSim(SimContainer):
     def __init__(self):
         super().__init__()
-        self.particles = [
-            Particle(
-                f"particle_{i}",
-                orbit_radius=0.5 + (i % 8) * 0.4,
-                speed=0.3 + (i % 5) * 0.15,
-                phase=i * 0.8,
-                z_amp=0.2 + (i % 4) * 0.3,
-                y_amp=0.3 + (i % 6) * 0.25,
-            )
-            for i in range(16)
+        self.static_nodes = [
+            StaticNode("static_0", [2.0, 0.0, 0.0]),
+            StaticNode("static_1", [0.0, 2.0, 0.0]),
+            StaticNode("static_2", [-1.0, -1.0, 1.0]),
         ]
-        self._t = 0.0
 
     def step(self, dt):
-        self._t += dt
-        for p in self.particles:
-            p.step(dt)
+        pass
 
     def run(self):
         pass

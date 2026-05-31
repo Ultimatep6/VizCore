@@ -1,79 +1,30 @@
-import os
-from moderngl_window import create_window_config_instance, run_window_config_instance
-import moderngl
 import numpy as np
+from moderngl_window import create_window_config_instance, run_window_config_instance
 
 from settings_gui.guiManager import GuiManager
+from settings_gui.blipGui import BlipGui
 from core.simulation import SimContainer
 from window.mainWindow import SimulationRoom
-from window import settings as window_settings
 from tile_management.tile import TileManager
 from input_state import InputState
-from render_pipeline import (
-    render_tiles,
-    render_gui,
-    render_nodes,
-    render_indicators,
-    render_cylinders,
-    generate_sphere_geometry,
-)
+from window.blip import Blips
+from render_pipeline import render_tiles, render_gui
 
 
 class MainLoopHandler:
-    def __init__(
-        self,
-        fullscreen: bool = True,
-        position_signal_name: str = "position",
-        position_schema=None,
-    ) -> None:
+    def __init__(self, fullscreen: bool = True) -> None:
         self.input = InputState()
         self.dashboardInstance = None
         self.guiManager = None
         self.tileManager = None
         self._simulation = None
-
+        self._blip_node_names = []
         self._fullscreen = fullscreen
 
-        # Signal Stuff from Program
-        self._position_signal_name = position_signal_name
-        self._position_schema = position_schema
-        self._position_paths = []
-        self._position_values = np.empty((0, 3), dtype=np.float32)
-        self._sphere_program = None
-        self._sphere_vao = None
-        self._sphere_instance_buf = None
-
     def attach_simulation(self, simulation: SimContainer):
-
         if not callable(getattr(simulation, "step", None)):
             NotImplementedError("Simulation class has no callable step class")
-
         self._simulation = simulation
-        self._signal_schemas = self._simulation.get_signal_schemas()
-        self._scan_default_signals(self._signal_schemas)
-
-    def _scan_default_signals(self, schemas):
-        if self._simulation is None:
-            self._position_paths = []
-            return
-        paths = [
-            path
-            for path in schemas
-            if path.split(".")[-1] == self._position_signal_name
-        ]
-        if self._position_schema is not None:
-            paths = [p for p in paths if self._position_schema.matches(schemas[p])]
-        self._position_paths = paths
-
-    def _read_default_signals(self):
-        if self._simulation is None or not self._position_paths:
-            self._position_values = np.empty((0, 3), dtype=np.float32)
-            return
-        vals = []
-        for path in self._position_paths:
-            val = self._simulation.get_value_at(path)
-            vals.append(val[:3] if hasattr(val, "__len__") else [val, 0.0, 0.0])
-        self._position_values = np.array(vals, dtype=np.float32)
 
     def run(self):
         self.dashboardInstance = create_window_config_instance(SimulationRoom)
@@ -81,38 +32,10 @@ class MainLoopHandler:
         wnd._window.set_fullscreen(self._fullscreen)
         self.tileManager = TileManager(self.dashboardInstance)
         self.guiManager = GuiManager(self.dashboardInstance)
-        self._setup_sphere()
+        self.blip_gui = BlipGui(self.dashboardInstance)
+        self.blips = Blips(self.dashboardInstance)
         self._bind_callbacks()
-        self._read_default_signals()
         run_window_config_instance(self.dashboardInstance)
-
-    def _setup_sphere(self):
-        ctx = self.dashboardInstance.ctx
-        prog = self.dashboardInstance.load_program(
-            vertex_shader=os.path.join(window_settings.SHADER_DIR, "sim_sphere.vert"),
-            fragment_shader=os.path.join(window_settings.SHADER_DIR, "sim_sphere.frag"),
-        )
-        verts, norms, idx = generate_sphere_geometry(
-            window_settings.SPHERE_RADIUS,
-            window_settings.SPHERE_SECTORS,
-            window_settings.SPHERE_RINGS,
-        )
-        vbo_vert = ctx.buffer(verts.tobytes())
-        vbo_norm = ctx.buffer(norms.tobytes())
-        ibo = ctx.buffer(idx.tobytes())
-        instance_buf = ctx.buffer(reserve=window_settings.MAX_SPHERE_INSTANCES * 3 * 4)
-        vao = ctx.vertex_array(
-            prog,
-            [
-                (vbo_vert, "3f", "in_vert"),
-                (vbo_norm, "3f", "in_normal"),
-                (instance_buf, "3f/i", "in_pos"),
-            ],
-            ibo,
-        )
-        self._sphere_program = prog
-        self._sphere_vao = vao
-        self._sphere_instance_buf = instance_buf
 
     def _bind_callbacks(self):
         dc = self.dashboardInstance.callbacks
@@ -141,16 +64,16 @@ class MainLoopHandler:
     def _on_key_press(self, ctrl_pressed):
         self.input.ctrl_pressed = ctrl_pressed
 
-
     def _on_tick(self, time, frame_time):
         if self._simulation is not None and callable(
             getattr(self._simulation, "step", None)
         ):
             self._simulation.step(frame_time)
-        self._read_default_signals()
 
     def _on_mouse_press(self, x, y, button):
         if self.guiManager.on_mouse_press(x, y, button):
+            return
+        if self.blip_gui.on_mouse_press(x, y, button):
             return
         if button == 1:
             border = self.tileManager.get_border_at(x, y, threshold=5)
@@ -161,14 +84,27 @@ class MainLoopHandler:
             if idx is not None:
                 self.tileManager.set_focus(idx)
         elif button == 2:
-            idx = self.tileManager.get_tile_index(x, y)
-            if idx is not None:
-                self.tileManager.set_focus(idx)
-                tile = self.tileManager.tiles[idx]
-                self.guiManager.show_popup(x, y, tile=tile)
+            if self.input.ctrl_pressed:
+                idx = self.tileManager.get_tile_index(x, y)
+                if idx is not None:
+                    self.tileManager.set_focus(idx)
+                    tile = self.tileManager.tiles[idx]
+                    self.guiManager.show_popup(x, y, tile=tile)
+            else:
+                if not hasattr(self, "_last_vp"):
+                    return
+                w = self.dashboardInstance.wnd.width
+                h = self.dashboardInstance.wnd.height
+                hit_idx = self.blips.pick(
+                    x, y, self._last_vp, self._last_camera_pos, (w, h)
+                )
+                if hit_idx is not None:
+                    name = self._blip_node_names[hit_idx]
+                    self.blip_gui.show(x, y, name)
 
     def _on_mouse_release(self, x, y, button):
         self.guiManager.on_mouse_release(x, y, button)
+        self.blip_gui.on_mouse_release(x, y, button)
         if button == 1:
             self.input.dragging_border = False
 
@@ -187,6 +123,7 @@ class MainLoopHandler:
             return
         if key == wnd.keys.ESCAPE:
             self.guiManager.close_popup()
+            self.blip_gui.close()
         elif key == wnd.keys.S and self.guiManager.popup_visible:
             self.guiManager.print_sizing()
         elif key == wnd.keys.V and not self.input.ctrl_pressed:
@@ -202,48 +139,42 @@ class MainLoopHandler:
         render_tiles(self.dashboardInstance.ctx, self.tileManager)
 
     def _render_gui(self):
-        if not self.input.ctrl_pressed:
-            return
-        render_gui(self.dashboardInstance.ctx, self.guiManager)
-
-    def _render_nodes(self, vp):
-        instance = self.dashboardInstance
-        if self._sphere_program is None:
-            return
-        render_nodes(
-            instance.ctx,
-            vp,
-            self._sphere_program,
-            self._sphere_vao,
-            self._sphere_instance_buf,
-            self._position_values,
-            window_settings.SPHERE_RADIUS,
-            window_settings.SPHERE_COLOR,
-        )
-        render_indicators(
-            instance.ctx,
-            vp,
-            instance.indicator_program,
-            instance.circle_vao,
-            self._position_values,
-            window_settings.INDICATOR_RADIUS,
-            window_settings.INDICATOR_COLOR,
-        )
-        render_cylinders(
-            instance.ctx,
-            vp,
-            instance.cylinder_program,
-            instance.cylinder_vao,
-            self._position_values,
-            window_settings.BEAM_RADIUS,
-            window_settings.SPHERE_COLOR,
-            window_settings.MAX_BODIES,
-        )
-
+        if self.input.ctrl_pressed:
+            render_gui(self.dashboardInstance.ctx, self.guiManager)
+        self.blip_gui.render()
 
     def _on_resize(self, width, height):
         self.guiManager.on_resize(width, height)
+        self.blip_gui.on_resize(width, height)
         self.tileManager = TileManager(self.dashboardInstance)
+
+    def _render_nodes(self, vp, camera_pos):
+        self._last_vp = vp
+        self._last_camera_pos = camera_pos
+        sim = self._simulation
+        if sim is None:
+            return
+        schemas = sim.get_signal_schemas()
+        positions = []
+        names = []
+        for path in schemas:
+            if path.endswith(".position") or path == "position":
+                val = sim.get_value_at(path)
+                if val is not None:
+                    positions.append(val)
+                    if path == "position":
+                        names.append("root")
+                    else:
+                        node_path = ".".join(path.split(".")[:-1])
+                        try:
+                            node_obj = sim.get_value_at(node_path)
+                            names.append(getattr(node_obj, "name", node_path))
+                        except Exception:
+                            names.append(node_path)
+        if positions:
+            self.blips.set_positions(np.array(positions, dtype=np.float32))
+        self._blip_node_names = names
+        self.blips.render(vp, camera_pos)
 
 
 if __name__ == "__main__":
