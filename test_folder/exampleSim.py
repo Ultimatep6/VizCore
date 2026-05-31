@@ -39,12 +39,15 @@ class ExampleSim(SimContainer):
         super().__init__()
         self.static_nodes = [
             StaticNode("static_0", [2.0, 0.0, 0.0]),
-            StaticNode("static_1", [0.0, 2.0, 0.0]),
-            StaticNode("static_2", [-1.0, -1.0, 1.0]),
+        ]
+        self.particles = [
+            Particle("particle_0", 1.5, 0.8, 0.0, 0.5, 0.3),
+            Particle("particle_1", 2.0, 0.5, 1.2, 0.8, 0.6),
         ]
 
     def step(self, dt):
-        pass
+        for p in self.particles:
+            p.step(dt)
 
     def run(self):
         pass

@@ -22,7 +22,11 @@ class Blips:
     def set_positions(self, positions: np.ndarray):
         N = positions.shape[0]
         self._positions[:N, :3] = positions
+        self._positions[:N, 3] = 1.0
         self._count = N
+
+    def set_active(self, blip_idx: int, active: bool):
+        self._positions[blip_idx, 3] = 1.0 if active else 0.0
 
     def render(self, vp, camera_pos):
         self.program["u_vp"].write(vp.astype("f4").T.tobytes())
