@@ -460,6 +460,9 @@ class SimulationRoom(mglw.WindowConfig):
                 moderngl.TRIANGLES, self.axis_vert_count, instances=settings.MAX_ARROWS
             )
 
+        if cb := getattr(self.render_callbacks, "render_nodes", None):
+            cb(vp)
+
         self.ctx.disable(moderngl.DEPTH_TEST)
         self.ctx.depth_mask = False
 

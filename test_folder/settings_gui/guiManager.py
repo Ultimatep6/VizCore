@@ -5,7 +5,7 @@ from elements import Button, Branch
 class GuiManager:
     def __init__(self, mainWindow, widgets=None):
         self.renderer = GuiRenderer(mainWindow)
-        self._widgets = widgets or ["Chart", "Table", "Stats"]
+        self._widgets = widgets or ["Chart", "Plugin A", "Plugin B"]
 
         self._win_w = mainWindow.wnd.width
         self._win_h = mainWindow.wnd.height
