@@ -32,19 +32,37 @@ class GuiRenderer:
         self.outline_vbo = ctx.buffer(outline_verts.tobytes())
         self.outline_vao = ctx.vertex_array(self.program, [(self.outline_vbo, "2f", "in_vert")])
 
-    def quad(self, x, y, w, h, color):
+    def quad(self, x, y, w, h, color, alpha=1.0):
+        r, g, b = color[:3]
         self.program["u_resolution"] = (self.width, self.height)
         self.program["u_pos"] = (x, y)
         self.program["u_size"] = (w, h)
-        self.program["u_color"] = color
+        self.program["u_color"] = (r, g, b, alpha)
+        if alpha < 1.0:
+            self.ctx.enable(moderngl.BLEND)
         self.quad_vao.render(moderngl.TRIANGLE_STRIP)
+        if alpha < 1.0:
+            self.ctx.disable(moderngl.BLEND)
 
-    def outline(self, x, y, w, h, color):
+    def outline(self, x, y, w, h, color, alpha=1.0):
+        r, g, b = color[:3]
         self.program["u_resolution"] = (self.width, self.height)
         self.program["u_pos"] = (x, y)
         self.program["u_size"] = (w, h)
-        self.program["u_color"] = color
+        self.program["u_color"] = (r, g, b, alpha)
         self.outline_vao.render(moderngl.LINE_LOOP)
+
+    def text(self, text_str, x, y, color=(1.0, 1.0, 1.0), scale=0.5,
+             anchor_x="left", anchor_y="bottom", clip_rect=None):
+        r, g, b = color[:3]
+        ir, ig, ib, ia = int(r * 255), int(g * 255), int(b * 255), 255
+        lbl = pyglet.text.Label(
+            text_str, color=(ir, ig, ib, ia),
+            anchor_x=anchor_x, anchor_y=anchor_y,
+            font_size=int(10 * scale / 0.5),
+            x=int(x), y=int(y),
+        )
+        lbl.draw()
 
 
 class GuiPlayground(pyglet.window.Window):
@@ -71,6 +89,7 @@ class GuiPlayground(pyglet.window.Window):
         self.show_debug = True
 
         self._sub_levels = []
+        self._sub_direction = None
 
         pyglet.clock.schedule_interval(self._update, 1 / 60.0)
 
@@ -222,8 +241,24 @@ class GuiPlayground(pyglet.window.Window):
 
         ox = branch.x + branch.w + 5
         oy = branch.y
-        if ox + sw > self.WINDOW_W:
+
+        # Maintain consistent direction across nested sub-levels
+        if self._sub_direction is None:
+            if ox + sw > self.WINDOW_W:
+                ox = branch.x - sw - 5
+                self._sub_direction = "left" if ox >= 0 else "right"
+            else:
+                self._sub_direction = "right"
+        elif self._sub_direction == "right":
+            if ox + sw > self.WINDOW_W:
+                ox = branch.x - sw - 5
+                self._sub_direction = "left"
+        else:  # left
             ox = branch.x - sw - 5
+            if ox < 0:
+                ox = branch.x + branch.w + 5
+                self._sub_direction = "right"
+
         if oy + sh > self.WINDOW_H:
             oy = self.WINDOW_H - sh
         if oy < 0:
@@ -240,6 +275,8 @@ class GuiPlayground(pyglet.window.Window):
     def _pop_top_level(self):
         if self._sub_levels:
             self._sub_levels.pop()
+        if not self._sub_levels:
+            self._sub_direction = None
 
     def _update(self, dt):
         self._fps_frames += 1
@@ -253,14 +290,12 @@ class GuiPlayground(pyglet.window.Window):
         self.ctx.clear(0.08, 0.08, 0.1, 1.0)
         self.ctx.disable(moderngl.DEPTH_TEST)
 
-        title = pyglet.text.Label(
+        self.gui.text(
             f"GUI Playground    FPS: {self._fps:.0f}",
-            color=(180, 180, 200, 255),
-            font_size=12,
-            x=15,
-            y=self.WINDOW_H - 25,
+            15, self.WINDOW_H - 25,
+            color=(0.7, 0.7, 0.78), scale=0.6,
+            anchor_x="left", anchor_y="top",
         )
-        title.draw()
 
         for e in self.elements:
             if e.visible:
@@ -282,14 +317,12 @@ class GuiPlayground(pyglet.window.Window):
                 for e in level["elements"]:
                     if e.visible:
                         self.gui.outline(e.x, e.y, e.w, e.h, (0.0, 1.0, 1.0))
-            dbg = pyglet.text.Label(
+            self.gui.text(
                 "Debug: ON  [D to toggle]",
-                color=(0, 255, 255, 200),
-                font_size=9,
-                x=self.WINDOW_W - 160,
-                y=8,
+                self.WINDOW_W - 160, 8,
+                color=(0.0, 1.0, 1.0), scale=0.45,
+                anchor_x="left", anchor_y="bottom",
             )
-            dbg.draw()
 
     def _top_element(self, x, y):
         for e in reversed(self.elements):

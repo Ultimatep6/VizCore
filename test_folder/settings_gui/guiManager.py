@@ -20,12 +20,9 @@ class GuiManager:
         self.show_debug = False
         self._popup_tile = None
 
-    def _flip(self, y):
-        return self._win_h - y
-
     def show_popup(self, x, y, tile=None):
         self.popup_x = x
-        self.popup_y = self._flip(y)
+        self.popup_y = self._win_h - y
         self.popup_visible = True
         self._sub_levels.clear()
         self._captured = None
@@ -43,7 +40,7 @@ class GuiManager:
         self._popup_tile = None
 
     def _build_tile_popup(self, tile):
-        y_off = self.popup_y - 35
+        y_off = self.popup_y
         if tile.widget is not None:
             self.popup_elements = [
                 Button(
@@ -191,15 +188,15 @@ class GuiManager:
     def on_mouse_press(self, x, y, button):
         if not self.popup_visible:
             return False
-        fy = self._flip(y)
+        y = self._win_h - y
         while self._sub_levels:
             level = self._sub_levels[-1]
             lx, ly, lw, lh = self._level_bounds(level["elements"])
-            if lx <= x <= lx + lw and ly <= fy <= ly + lh:
+            if lx <= x <= lx + lw and ly <= y <= ly + lh:
                 if button == 1:
                     for e in reversed(level["elements"]):
-                        if e.hit_test(x, fy):
-                            e.on_mouse_press(x, fy, button)
+                        if e.hit_test(x, y):
+                            e.on_mouse_press(x, y, button)
                             self._captured = e
                             if isinstance(e, Branch):
                                 if (
@@ -213,10 +210,10 @@ class GuiManager:
                 return True
             self._pop_top_level()
         bx, by, bw, bh = self._popup_bounds()
-        if bx <= x <= bx + bw and by <= fy <= by + bh:
+        if bx <= x <= bx + bw and by <= y <= by + bh:
             for e in reversed(self.popup_elements):
-                if e.hit_test(x, fy):
-                    e.on_mouse_press(x, fy, button)
+                if e.hit_test(x, y):
+                    e.on_mouse_press(x, y, button)
                     self._captured = e
                     if isinstance(e, Branch):
                         if self._sub_levels and self._sub_levels[-1]["branch"] is e:
@@ -231,17 +228,17 @@ class GuiManager:
 
     def on_mouse_release(self, x, y, button):
         if self._captured:
-            self._captured.on_mouse_release(x, self._flip(y), button)
+            self._captured.on_mouse_release(x, self._win_h - y, button)
             self._captured = None
 
     def on_mouse_drag(self, x, y, dx, dy):
         if self._captured:
-            self._captured.on_mouse_drag(x, self._flip(y), dx, dy, 1)
+            self._captured.on_mouse_drag(x, self._win_h - y, dx, dy, 1)
 
     def on_mouse_move(self, x, y, dx, dy):
         if not self.popup_visible:
             return
-        fy = self._flip(y)
+        y = self._win_h - y
         for e in self.popup_elements:
             e.hovered = False
         for level in self._sub_levels:
@@ -249,11 +246,11 @@ class GuiManager:
                 e.hovered = False
         for level in reversed(self._sub_levels):
             for e in reversed(level["elements"]):
-                if e.visible and e.hit_test(x, fy):
+                if e.visible and e.hit_test(x, y):
                     e.hovered = True
                     return
         for e in reversed(self.popup_elements):
-            if e.visible and e.hit_test(x, fy):
+            if e.visible and e.hit_test(x, y):
                 e.hovered = True
                 return
 

@@ -41,8 +41,8 @@ class ExampleSim(SimContainer):
             StaticNode("static_0", [2.0, 0.0, 0.0]),
         ]
         self.particles = [
-            Particle("particle_0", 1.5, 0.8, 0.0, 0.5, 0.3),
-            Particle("particle_1", 2.0, 0.5, 1.2, 0.8, 0.6),
+            Particle("particle_0", 8.0, 0.8, 0.0, 0.5, 0.3),
+            Particle("particle_1", 7.0, 0.5, 1.2, 0.8, 0.6),
         ]
 
     def step(self, dt):

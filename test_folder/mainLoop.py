@@ -16,6 +16,8 @@ from window.blip import Blips
 from window.model_aligner import ModelAligner
 from mesh_loader import load_model
 from render_pipeline import render_tiles, render_gui
+from vizcore.utils import get_model_matrix
+from window import settings as window_settings
 
 
 class MainLoopHandler:
@@ -220,16 +222,68 @@ class MainLoopHandler:
                             names.append(getattr(node_obj, "name", node_path))
                         except Exception:
                             names.append(node_path)
-        if positions:
-            pos_arr = np.array(positions, dtype=np.float32)
-            self.blips.set_positions(pos_arr)
-            for blip_idx in self._blip_models:
-                if blip_idx < len(positions):
-                    self.blips.set_active(blip_idx, False)
+        if not positions:
+            return
+
+        pos_arr = np.array(positions, dtype=np.float32)
+        N = len(positions)
+        ctx = self.dashboardInstance.ctx
+        dw = self.dashboardInstance
+        beam_r = 0.025
+
+        ctx.enable(moderngl.DEPTH_TEST)
+
+        # --- Circle indicators on floor ---
+        ind_prog = dw.indicator_program
+        circle_vao = dw.circle_vao
+        ind_prog["u_color"].write(np.array(window_settings.INDICATOR_COLOR, dtype="f4").tobytes())
+        ind_prog["R"].value = window_settings.INDICATOR_RADIUS
+        for pos in positions:
+            t = np.eye(4, dtype=np.float32)
+            t[0:3, 3] = [pos[0], 0.0, pos[2]]
+            mvp = vp @ t
+            ind_prog["mvp"].write(mvp.astype("f4").T.tobytes())
+            circle_vao.render(moderngl.TRIANGLE_STRIP, 4)
+
+        # --- Beam indicators ---
+        cyl_prog = dw.cylinder_program
+        cyl_vao = dw.cylinder_vao
+        max_inst = window_settings.MAX_BODIES
+        count = min(N, max_inst)
+        matrices = np.tile(np.eye(4, dtype=np.float32), (max_inst, 1, 1))
+        colors = np.zeros((max_inst, 3), dtype=np.float32)
+        for i in range(count):
+            pos = positions[i]
+            h = pos[1]
+            if h >= 0:
+                matrices[i, 1, 3] = 0.0
+                matrices[i, 1, 1] = h
+            else:
+                matrices[i, 1, 3] = h
+                matrices[i, 1, 1] = -h
+            matrices[i, 0, 0] = beam_r
+            matrices[i, 2, 2] = beam_r
+            matrices[i, 0, 3] = pos[0]
+            matrices[i, 2, 3] = pos[2]
+            colors[i] = window_settings.INDICATOR_COLOR
+        cyl_prog["u_vp"].write(vp.astype("f4").T.tobytes())
+        cyl_prog["u_models"].write(
+            matrices.transpose(0, 2, 1).ravel().astype("f4").tobytes()
+        )
+        cyl_prog["u_colors"].write(colors.astype("f4").tobytes())
+        cyl_vao.render(moderngl.TRIANGLES, 24 * 6, instances=count)
+
+        ctx.disable(moderngl.DEPTH_TEST)
+
+        # --- Blips ---
+        self.blips.set_positions(pos_arr)
+        for blip_idx in self._blip_models:
+            if blip_idx < len(positions):
+                self.blips.set_active(blip_idx, False)
         self._blip_node_names = names
         self.blips.render(vp, camera_pos)
 
-        # Render models for assigned blips
+        # --- Render models for assigned blips ---
         if self._blip_models and positions:
             prog = self.model_aligner.model_program
             for blip_idx, version_id in list(self._blip_models.items()):

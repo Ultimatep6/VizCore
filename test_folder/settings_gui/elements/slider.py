@@ -1,5 +1,5 @@
-import pyglet
 from guiElement import GUIElement
+from guiRenderer import GuiRenderer
 
 
 class Slider(GUIElement):
@@ -12,9 +12,6 @@ class Slider(GUIElement):
         self.value = initial if initial is not None else (min_val + max_val) / 2
         self.on_change = on_change
         self._dragging = False
-        self._label = pyglet.text.Label(
-            label, color=(200, 200, 200, 255), anchor_y="center", font_size=10
-        )
 
     @property
     def ratio(self):
@@ -31,6 +28,11 @@ class Slider(GUIElement):
             self.on_change(self.value)
 
     def draw(self, renderer):
+        label = f"{self.label_text}: {self.value:.1f}"
+        needed = GuiRenderer.text_width(label) + 20
+        if needed > self.w:
+            self.w = needed
+
         track_y = self.y + self.h * 0.3
         track_h = max(4, self.h * 0.2)
         renderer.quad(self.x + 10, track_y, self.w - 20, track_h, (0.12, 0.12, 0.12))
@@ -41,10 +43,8 @@ class Slider(GUIElement):
         thumb_x = self.x + 10 + (self.w - 20) * self.ratio
         thumb_s = 10
         renderer.quad(thumb_x - thumb_s / 2, track_y - 2, thumb_s, track_h + 4, (0.85, 0.85, 0.85))
-        self._label.text = f"{self.label_text}: {self.value:.1f}"
-        self._label.x = self.x + 5
-        self._label.y = self.y + self.h - 8
-        self._label.draw()
+        renderer.text(label,
+                      self.x + 5, self.y + self.h - 8, anchor_x="left", anchor_y="top")
         self.draw_grip(renderer)
 
     def on_mouse_press(self, x, y, button):
