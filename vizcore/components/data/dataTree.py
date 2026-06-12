@@ -311,7 +311,7 @@ class DataTree(BaseWidget):
         ], dtype='f4').T
 
     def _to_text_space_y(self, world_y_from_bottom):
-        """Convert bottom-origin widget Y to TextRenderer top-origin Y."""
+        """Convert bottom-origin widget Y to top-origin Y for screen-space text."""
         if not self.camera:
             return world_y_from_bottom
         return self.camera.height - world_y_from_bottom

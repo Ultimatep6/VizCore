@@ -97,7 +97,7 @@ class BaseWidget:
     def bind_renderer(self, renderer):
         """
         Called automatically by the Window when the widget is dropped into a Tile.
-        Initialize your Moderngl VBOs, VAOs, and TextRenderers here!
+        Initialize your Moderngl VBOs and VAOs here!
         """
         self._renderer = renderer
 

@@ -97,13 +97,11 @@ def get_rot_matrix(angle, axis: np.ndarray, dim: bool = False) -> np.ndarray:
     )
 
 
-def get_total_rot_matrix(
-    angle_x=0.0, angle_y=0.0, angle_z=0.0, dim=False
-) -> np.ndarray:
+def get_total_rot_matrix(angle_x=0.0, angle_y=0.0, angle_z=0.0) -> np.ndarray:
 
-    rotX = get_rot_matrix(angle_x, X_AXIS, dim=dim)
-    rotY = get_rot_matrix(angle_y, Y_AXIS, dim=dim)
-    rotZ = get_rot_matrix(angle_z, Z_AXIS, dim=dim)
+    rotX = get_rot_matrix(angle_x, X_AXIS)
+    rotY = get_rot_matrix(angle_y, Y_AXIS)
+    rotZ = get_rot_matrix(angle_z, Z_AXIS)
 
     rotT = rotZ @ rotY @ rotX
     return rotT

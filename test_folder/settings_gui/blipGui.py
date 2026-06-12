@@ -1,5 +1,5 @@
-from guiRenderer import GuiRenderer
-from elements import Button, Branch
+from settings_gui.guiRenderer import GuiRenderer
+from settings_gui.elements import Button, Branch
 
 
 class BlipGui:
@@ -23,7 +23,7 @@ class BlipGui:
 
     def show(self, x, y, node_name, has_model=False, repo_entries=None):
         self._x = x
-        self._y = self._win_h - y
+        self._y = y
         self._node_name = node_name
         self.visible = True
         self._captured = None
@@ -169,7 +169,6 @@ class BlipGui:
     def on_mouse_press(self, x, y, button):
         if not self.visible:
             return False
-        y = self._win_h - y
         while self._sub_levels:
             level = self._sub_levels[-1]
             lx, ly, lw, lh = self._level_bounds(level["elements"])
@@ -210,13 +209,12 @@ class BlipGui:
 
     def on_mouse_release(self, x, y, button):
         if self._captured:
-            self._captured.on_mouse_release(x, self._win_h - y, button)
+            self._captured.on_mouse_release(x, y, button)
             self._captured = None
 
     def on_mouse_move(self, x, y, dx, dy):
         if not self.visible:
             return
-        y = self._win_h - y
         for e in self._elements:
             e.hovered = False
         for level in self._sub_levels:

@@ -1,0 +1,42 @@
+test_adjacent_after_horizontal_split (tests.test_tile_geometry.TestCanMerge.test_adjacent_after_horizontal_split) ... ok
+test_adjacent_after_vertical_split (tests.test_tile_geometry.TestCanMerge.test_adjacent_after_vertical_split) ... ok
+test_non_adjacent_tiles (tests.test_tile_geometry.TestCanMerge.test_non_adjacent_tiles) ... ok
+test_detects_horizontal_border_at_second_row (tests.test_tile_geometry.TestGetBorderAt.test_detects_horizontal_border_at_second_row) ... ok
+test_detects_horizontal_border_at_tile_bottom (tests.test_tile_geometry.TestGetBorderAt.test_detects_horizontal_border_at_tile_bottom) ... ok
+test_detects_horizontal_border_between_split_halves (tests.test_tile_geometry.TestGetBorderAt.test_detects_horizontal_border_between_split_halves) ... ok
+test_detects_left_border_of_right_column (tests.test_tile_geometry.TestGetBorderAt.test_detects_left_border_of_right_column) ... ok
+test_detects_right_border_of_left_column (tests.test_tile_geometry.TestGetBorderAt.test_detects_right_border_of_left_column) ... ok
+test_ignores_x0_window_edge (tests.test_tile_geometry.TestGetBorderAt.test_ignores_x0_window_edge) ... ok
+test_ignores_x1280_window_edge (tests.test_tile_geometry.TestGetBorderAt.test_ignores_x1280_window_edge) ... ok
+test_ignores_y0_window_edge (tests.test_tile_geometry.TestGetBorderAt.test_ignores_y0_window_edge) ... ok
+test_returns_none_for_interior_point (tests.test_tile_geometry.TestGetBorderAt.test_returns_none_for_interior_point) ... ok
+test_finds_tile_0_at_center (tests.test_tile_geometry.TestGetTileIndex.test_finds_tile_0_at_center) ... ok
+test_finds_tile_0_at_origin (tests.test_tile_geometry.TestGetTileIndex.test_finds_tile_0_at_origin) ... ok
+test_finds_tile_2_on_right_side (tests.test_tile_geometry.TestGetTileIndex.test_finds_tile_2_on_right_side) ... ok
+test_finds_tile_3_bottom_right (tests.test_tile_geometry.TestGetTileIndex.test_finds_tile_3_bottom_right) ... ok
+test_returns_none_outside_all_tiles (tests.test_tile_geometry.TestGetTileIndex.test_returns_none_outside_all_tiles) ... ok
+test_tile_index_after_horizontal_split (tests.test_tile_geometry.TestGetTileIndex.test_tile_index_after_horizontal_split) ... ok
+test_tile_index_after_vertical_split (tests.test_tile_geometry.TestGetTileIndex.test_tile_index_after_vertical_split) ... ok
+test_tile_count_and_focus (tests.test_tile_geometry.TestInitTiles.test_tile_count_and_focus) ... ok
+test_tile_dimensions (tests.test_tile_geometry.TestInitTiles.test_tile_dimensions) ... ok
+test_tile_positions_2x2_grid (tests.test_tile_geometry.TestInitTiles.test_tile_positions_2x2_grid) ... ok
+test_tile_y_top_down (tests.test_tile_geometry.TestInitTiles.test_tile_y_top_down) ... ok
+test_merge_horizontal_split_tiles (tests.test_tile_geometry.TestMerge.test_merge_horizontal_split_tiles) ... ok
+test_merge_non_adjacent_returns_false (tests.test_tile_geometry.TestMerge.test_merge_non_adjacent_returns_false) ... ok
+test_merge_vertical_split_tiles (tests.test_tile_geometry.TestMerge.test_merge_vertical_split_tiles) ... ok
+test_horizontal_resize_upward (tests.test_tile_geometry.TestResizeBorder.test_horizontal_resize_upward) ... ok
+test_resize_clamped_by_minimum (tests.test_tile_geometry.TestResizeBorder.test_resize_clamped_by_minimum) ... ok
+test_vertical_resize_leftward (tests.test_tile_geometry.TestResizeBorder.test_vertical_resize_leftward) ... ok
+test_vertical_resize_rightward (tests.test_tile_geometry.TestResizeBorder.test_vertical_resize_rightward) ... ok
+test_horizontal_split_count (tests.test_tile_geometry.TestSplitFocusedTile.test_horizontal_split_count) ... ok
+test_horizontal_split_dimensions (tests.test_tile_geometry.TestSplitFocusedTile.test_horizontal_split_dimensions) ... ok
+test_horizontal_split_y_positions (tests.test_tile_geometry.TestSplitFocusedTile.test_horizontal_split_y_positions) ... ok
+test_vertical_split_count (tests.test_tile_geometry.TestSplitFocusedTile.test_vertical_split_count) ... ok
+test_vertical_split_dimensions (tests.test_tile_geometry.TestSplitFocusedTile.test_vertical_split_dimensions) ... ok
+test_vertical_split_x_positions (tests.test_tile_geometry.TestSplitFocusedTile.test_vertical_split_x_positions) ... ok
+test_tile_repr_contains_geometry (tests.test_tile_geometry.TestTileRepr.test_tile_repr_contains_geometry) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 1.097s
+
+OK

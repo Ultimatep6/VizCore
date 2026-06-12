@@ -1,0 +1,9 @@
+=== TASK 10: Verify _render_widgets implementation ===
+224:    def _render_widgets(self):
+225-        if self.input.ctrl_pressed:
+226-            return  # Tile border mode; skip widget rendering
+227-        if self.widget_manager:
+228-            self.widget_manager.render_all()
+229-
+
+PASS: _render_widgets has all required logic: ['ctrl check present', 'widget_manager check present', 'render_all call present']

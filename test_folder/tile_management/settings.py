@@ -2,7 +2,7 @@
 MAX_TILES = 16
 
 # Distance between left tiles and right tiles
-DASHBOARD_CENTER_GAP_X = 200
+DASHBOARD_CENTER_GAP_X = 500
 DASHBOARD_CENTER_GAP_Y = 200
 
 # Inter Tile Margins

@@ -1,0 +1,85 @@
+test_flip_consistency_with_guimananger (tests.test_coordinates.TestBlipGuiYFlip.test_flip_consistency_with_guimananger)
+Both GuiManager and BlipGui use identical flip formula. ... ok
+test_flip_on_mouse_move (tests.test_coordinates.TestBlipGuiYFlip.test_flip_on_mouse_move)
+on_mouse_move flips y at line 219. ... ok
+test_flip_on_mouse_press (tests.test_coordinates.TestBlipGuiYFlip.test_flip_on_mouse_press)
+on_mouse_press flips y at line 172. ... ok
+test_flip_on_mouse_release (tests.test_coordinates.TestBlipGuiYFlip.test_flip_on_mouse_release)
+on_mouse_release flips y at line 213. ... ok
+test_flip_show (tests.test_coordinates.TestBlipGuiYFlip.test_flip_show)
+show() flips y at line 26. ... ok
+test_all_flips_are_self_inverse (tests.test_coordinates.TestCoordinateSystemInvariants.test_all_flips_are_self_inverse)
+Flip(Flip(y)) == y for all implementations. ... ok
+test_flip_center_is_fixed_point (tests.test_coordinates.TestCoordinateSystemInvariants.test_flip_center_is_fixed_point)
+flip(y) == y when y == window_height / 2. ... ok
+test_flip_preserves_window_height (tests.test_coordinates.TestCoordinateSystemInvariants.test_flip_preserves_window_height)
+flip(0) + flip(max) == window_height for standard flips. ... ok
+test_flip_on_mouse_drag (tests.test_coordinates.TestGuiManagerYFlip.test_flip_on_mouse_drag)
+on_mouse_drag flips y at line 242. ... ok
+test_flip_on_mouse_move (tests.test_coordinates.TestGuiManagerYFlip.test_flip_on_mouse_move)
+on_mouse_move flips y at line 247. ... ok
+test_flip_on_mouse_press (tests.test_coordinates.TestGuiManagerYFlip.test_flip_on_mouse_press)
+on_mouse_press flips y at line 197. ... ok
+test_flip_on_mouse_release (tests.test_coordinates.TestGuiManagerYFlip.test_flip_on_mouse_release)
+on_mouse_release flips y at line 237. ... ok
+test_flip_show_popup (tests.test_coordinates.TestGuiManagerYFlip.test_flip_show_popup)
+show_popup stores flipped y at line 26. ... ok
+test_flip_symmetry (tests.test_coordinates.TestGuiManagerYFlip.test_flip_symmetry)
+Flip is symmetric: flip(flip(y)) == y. ... ok
+test_flip_top_down_max (tests.test_coordinates.TestGuiManagerYFlip.test_flip_top_down_max)
+Top-down y=720 (max) becomes bottom-up 0. ... ok
+test_flip_top_down_midpoint (tests.test_coordinates.TestGuiManagerYFlip.test_flip_top_down_midpoint)
+Top-down y=360 (mid) becomes bottom-up 360. ... ok
+test_flip_top_down_origin (tests.test_coordinates.TestGuiManagerYFlip.test_flip_top_down_origin)
+Top-down y=0 becomes bottom-up. ... ok
+test_flip_window_resize (tests.test_coordinates.TestGuiManagerYFlip.test_flip_window_resize)
+Flip adapts to different window heights. ... ok
+test_flip_max (tests.test_coordinates.TestModelAlignerYFlip.test_flip_max)
+Y=renderer.height becomes 0. ... ok
+test_flip_on_mouse_drag (tests.test_coordinates.TestModelAlignerYFlip.test_flip_on_mouse_drag)
+on_mouse_drag flips y at line 365. ... ok
+test_flip_on_mouse_press (tests.test_coordinates.TestModelAlignerYFlip.test_flip_on_mouse_press)
+on_mouse_press flips y at line 314. ... ok
+test_flip_on_mouse_release (tests.test_coordinates.TestModelAlignerYFlip.test_flip_on_mouse_release)
+on_mouse_release flips y at line 350. ... ok
+test_flip_origin (tests.test_coordinates.TestModelAlignerYFlip.test_flip_origin)
+Y=0 becomes renderer.height. ... ok
+test_ndc_flip_bottom (tests.test_coordinates.TestShaderNdcYFlip.test_ndc_flip_bottom)
+NDC y=0 (bottom) becomes y=0 after negation. ... ok
+test_ndc_flip_formula (tests.test_coordinates.TestShaderNdcYFlip.test_ndc_flip_formula)
+NDC flip formula: ndc_y = -ndc_y mirrors y around zero. ... ok
+test_ndc_flip_top (tests.test_coordinates.TestShaderNdcYFlip.test_ndc_flip_top)
+NDC y=1 (top) becomes y=-1 after negation. ... ok
+test_ndc_pixel_to_ndc_conversion (tests.test_coordinates.TestShaderNdcYFlip.test_ndc_pixel_to_ndc_conversion)
+Verify pixel_y -> NDC -> flip math. ... ok
+test_ndc_pixel_top_to_ndc (tests.test_coordinates.TestShaderNdcYFlip.test_ndc_pixel_top_to_ndc)
+Pixel y at top (720) maps to NDC y=1 before flip. ... ok
+test_flip_method_max (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_max)
+_flip(y=win_h) returns 0. ... ok
+test_flip_method_midpoint (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_midpoint)
+_flip(y=360) returns 360 (center). ... ok
+test_flip_method_on_mouse_move (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_on_mouse_move)
+on_mouse_move uses _flip at line 273. ... ok
+test_flip_method_on_mouse_press (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_on_mouse_press)
+on_mouse_press uses _flip at line 213. ... ok
+test_flip_method_on_mouse_release (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_on_mouse_release)
+on_mouse_release uses _flip at line 258. ... ok
+test_flip_method_origin (tests.test_coordinates.TestWidgetGuiFlipMethod.test_flip_method_origin)
+_flip(y=0) returns window height. ... ok
+test_bottom_up_y_at_bottom (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_at_bottom)
+Tile positioned at bottom of window (y=420 for 300-height tile). ... ok
+test_bottom_up_y_center_tile (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_center_tile)
+Tile centered vertically in window. ... ok
+test_bottom_up_y_edge_origin (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_edge_origin)
+Tile at y=0 with minimal height. ... ok
+test_bottom_up_y_full_height (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_full_height)
+Tile spanning full window height. ... ok
+test_bottom_up_y_top_origin (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_top_origin)
+Tile at top-left origin (y=0) with height 300. ... ok
+test_bottom_up_y_window_resize (tests.test_coordinates.TestWidgetManagerYFlip.test_bottom_up_y_window_resize)
+Verify flip adapts to different window heights. ... ok
+
+----------------------------------------------------------------------
+Ran 40 tests in 0.001s
+
+OK

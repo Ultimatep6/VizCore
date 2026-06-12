@@ -1,0 +1,31 @@
+=== TASK 2: Verify try/finally in line_plot.py ===
+153-        # 2. Data lines (scissor-clipped to plot area)
+154-        ctx = self._renderer.ctx
+155:        ctx.scissor = (self._tile_x + int(plot_x),
+156-                       self._tile_y + int(plot_y),
+157-                       int(plot_w), int(plot_h))
+158-        try:
+159-            for i, (name, buf) in enumerate(self._buffers.items()):
+160-                color = self.COLORS[i % len(self.COLORS)]
+--
+162-                         self.y_min, self.y_max, color)
+163-        finally:
+164:            ctx.scissor = None
+165-
+166-        # 3. Legend
+167-        if self._buffers:
+168-            leg_x = w - m - leg_w - (self._legend_x_offset * ui_scale)
+169-            leg_y = h - m - leg_h - (self._legend_y_offset * ui_scale)
+
+=== Test run ===
+2026-06-06 17:12:48,012 - moderngl_window - INFO - Attempting to load window class: moderngl_window.context.pyglet.Window
+2026-06-06 17:12:48,121 - moderngl_window.context.base.window - INFO - Context Version:
+2026-06-06 17:12:48,121 - moderngl_window.context.base.window - INFO - ModernGL: 5.12.0
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - vendor: AMD
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - renderer: AMD Radeon 780M Graphics (radeonsi, phoenix, ACO, DRM 3.64, 7.0.7-arch2-1)
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - version: 4.6 (Core Profile) Mesa 26.0.6-arch1.1
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - python: 3.14.5 (main, May 10 2026, 18:26:20) [GCC 16.1.1 20260430]
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - platform: linux
+2026-06-06 17:12:48,122 - moderngl_window.context.base.window - INFO - code: 460
+2026-06-06 17:13:11,631 - moderngl_window - INFO - Duration: 23.51s @ 73.64 FPS
+PASS: test_lineplot.py ran successfully

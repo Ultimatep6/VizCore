@@ -1,11 +1,12 @@
-from guiRenderer import GuiRenderer
-from elements import Button, Branch
+from settings_gui.guiRenderer import GuiRenderer
+from settings_gui.elements import Button, Branch
 
 
 class GuiManager:
-    def __init__(self, mainWindow, widgets=None):
+    def __init__(self, mainWindow, widgets=None, widget_manager=None):
         self.renderer = GuiRenderer(mainWindow)
         self._widgets = widgets or ["Chart", "Plugin A", "Plugin B"]
+        self._widget_manager = widget_manager
 
         self._win_w = mainWindow.wnd.width
         self._win_h = mainWindow.wnd.height
@@ -22,7 +23,7 @@ class GuiManager:
 
     def show_popup(self, x, y, tile=None):
         self.popup_x = x
-        self.popup_y = self._win_h - y
+        self.popup_y = y
         self.popup_visible = True
         self._sub_levels.clear()
         self._captured = None
@@ -66,6 +67,7 @@ class GuiManager:
         self._clamp_popup()
 
     def _build_widget_list(self, ox, oy):
+        widget_names = self._widget_manager.list_names() if self._widget_manager else self._widgets
         return [
             Button(
                 ox + 10,
@@ -75,16 +77,20 @@ class GuiManager:
                 name,
                 on_click=lambda n=name: self._add_widget(n),
             )
-            for i, name in enumerate(self._widgets)
+            for i, name in enumerate(widget_names)
         ]
 
     def _add_widget(self, name):
         if self._popup_tile is None:
             return
+        if self._widget_manager is not None:
+            self._widget_manager.add_widget(self._popup_tile, name)
         self._popup_tile.widget = name
         self._rebuild_popup()
 
     def _remove_widget(self, tile):
+        if self._widget_manager is not None:
+            self._widget_manager.destroy_widget(tile)
         tile.widget = None
         self._popup_tile = tile
         self._rebuild_popup()
@@ -188,7 +194,6 @@ class GuiManager:
     def on_mouse_press(self, x, y, button):
         if not self.popup_visible:
             return False
-        y = self._win_h - y
         while self._sub_levels:
             level = self._sub_levels[-1]
             lx, ly, lw, lh = self._level_bounds(level["elements"])
@@ -228,17 +233,16 @@ class GuiManager:
 
     def on_mouse_release(self, x, y, button):
         if self._captured:
-            self._captured.on_mouse_release(x, self._win_h - y, button)
+            self._captured.on_mouse_release(x, y, button)
             self._captured = None
 
     def on_mouse_drag(self, x, y, dx, dy):
         if self._captured:
-            self._captured.on_mouse_drag(x, self._win_h - y, dx, dy, 1)
+            self._captured.on_mouse_drag(x, y, dx, dy, 1)
 
     def on_mouse_move(self, x, y, dx, dy):
         if not self.popup_visible:
             return
-        y = self._win_h - y
         for e in self.popup_elements:
             e.hovered = False
         for level in self._sub_levels:

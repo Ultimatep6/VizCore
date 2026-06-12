@@ -44,6 +44,24 @@ class ExampleSim(SimContainer):
             Particle("particle_0", 8.0, 0.8, 0.0, 0.5, 0.3),
             Particle("particle_1", 7.0, 0.5, 1.2, 0.8, 0.6),
         ]
+        self.get_state = self._get_state
+
+    def _get_state(self):
+        state = {
+            "static_nodes": [node.get_state() for node in self.static_nodes],
+            "particles": [p.get_state() for p in self.particles],
+        }
+        for i, node in enumerate(self.static_nodes):
+            pos = node.position
+            state[f"static_node_{i}_x"] = pos[0]
+            state[f"static_node_{i}_y"] = pos[1]
+            state[f"static_node_{i}_z"] = pos[2]
+        for i, p in enumerate(self.particles):
+            pos = p.position
+            state[f"particle_{i}_x"] = pos[0]
+            state[f"particle_{i}_y"] = pos[1]
+            state[f"particle_{i}_z"] = pos[2]
+        return state
 
     def step(self, dt):
         for p in self.particles:

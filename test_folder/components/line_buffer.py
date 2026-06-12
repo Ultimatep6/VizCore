@@ -3,7 +3,7 @@ import numpy as np
 import moderngl
 
 _SHADER_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "..", "vizcore", "shaders"
+    os.path.dirname(os.path.abspath(__file__)), "shaders"
 )
 
 
@@ -42,12 +42,12 @@ class LineBuffer:
         # GPU index buffer
         self._ibo = renderer.ctx.buffer(self._indices.tobytes())
 
-        # Ensure the line_plot shader is loaded
         sm = renderer.shader_manager
-        if sm.get_shader("line_plot") is None:
-            vert_path = os.path.join(_SHADER_DIR, "line_plot.vert")
-            frag_path = os.path.join(_SHADER_DIR, "line_plot.frag")
-            sm.load_shader("line_plot", vertex_path=vert_path, fragment_path=frag_path)
+        vert_path = os.path.join(_SHADER_DIR, "line_plot.vert")
+        frag_path = os.path.join(_SHADER_DIR, "line_plot.frag")
+        if sm.get_shader("line_plot") is not None:
+            del sm._cache["line_plot"]
+        sm.load_shader("line_plot", vertex_path=vert_path, fragment_path=frag_path)
 
     @property
     def range(self):
@@ -93,8 +93,10 @@ class LineBuffer:
 
         renderer.set_uniform("line_plot", "u_min", y_min)
         renderer.set_uniform("line_plot", "u_max", y_max)
-        renderer.set_uniform("line_plot", "u_margin", float(x))
+        renderer.set_uniform("line_plot", "u_plot_x", float(x))
+        renderer.set_uniform("line_plot", "u_plot_y", float(y))
         renderer.set_uniform("line_plot", "u_plot_width", float(w))
+        renderer.set_uniform("line_plot", "u_plot_height", float(h))
         renderer.set_uniform("line_plot", "u_resolution", (ui.width, ui.height))
         renderer.set_uniform("line_plot", "u_points_per_channel", float(n))
         renderer.set_uniform("line_plot", "u_color", color)

@@ -3,8 +3,8 @@ import numpy as np
 import moderngl
 import pyglet
 
-from guiElement import GUIElement
-from elements import Button, Toggle, Slider, Branch
+from settings_gui.guiElement import GUIElement
+from settings_gui.elements import Button, Toggle, Slider, Branch
 
 UIElement = GUIElement  # backward compat alias
 

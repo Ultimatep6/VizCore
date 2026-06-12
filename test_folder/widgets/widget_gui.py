@@ -62,7 +62,8 @@ class _MenuItem:
             for i, (lbl, act) in enumerate(self.action)
         ]
 
-    def draw(self, ui, win_h):
+    def get_render_commands(self, win_h):
+        """Return a list of draw command dicts for this item."""
         # Dynamically expand width to fit text + branch arrow
         needed = _text_width(self.label) + 16
         if self.is_branch:
@@ -70,16 +71,34 @@ class _MenuItem:
         if needed > self.w:
             self.w = needed
 
+        commands = []
         bg = (0.35, 0.35, 0.45) if self.hovered else (0.25, 0.25, 0.35)
-        ui.quad(self.x, self.y, self.w, self.h, bg)
-        ui.outline(self.x, self.y, self.w, self.h, (0.5, 0.5, 0.5))
-
-        ui.text(self.label, self.x + 8, self.y + self.h // 2,
-                anchor_x="left", anchor_y="center")
-
+        commands.append({
+            'type': 'quad',
+            'x': self.x, 'y': self.y, 'w': self.w, 'h': self.h,
+            'color': bg, 'alpha': 1.0,
+        })
+        commands.append({
+            'type': 'outline',
+            'x': self.x, 'y': self.y, 'w': self.w, 'h': self.h,
+            'color': (0.5, 0.5, 0.5), 'alpha': 1.0,
+        })
+        commands.append({
+            'type': 'text',
+            'x': self.x + 8, 'y': self.y + self.h // 2,
+            'text': self.label,
+            'color': (1.0, 1.0, 1.0), 'scale': 0.5,
+            'anchor_x': 'left', 'anchor_y': 'center',
+        })
         if self.is_branch:
-            ui.text(">", self.x + self.w - 12, self.y + self.h // 2,
-                    anchor_x="center", anchor_y="center")
+            commands.append({
+                'type': 'text',
+                'x': self.x + self.w - 12, 'y': self.y + self.h // 2,
+                'text': '>',
+                'color': (1.0, 1.0, 1.0), 'scale': 0.5,
+                'anchor_x': 'center', 'anchor_y': 'center',
+            })
+        return commands
 
 
 class MenuRenderer:
@@ -119,21 +138,17 @@ class MenuRenderer:
         self._sub_direction = None  # "right" or "left" — maintained across nested levels
         self.visible = False
 
-    def _flip(self, y):
-        return self._win_h - y
-
     def open(self, entries, screen_x, screen_y):
         """
         Open a context menu from widget entries.
 
         Args:
             entries: List of (label, action) tuples from Widget.get_context_menu().
-            screen_x, screen_y: Right-click screen position (top-down from window).
+            screen_x, screen_y: Right-click screen position (bottom-up).
         """
-        bu_y = self._flip(screen_y)  # top-down → bottom-up
         gap = _MenuItem.ITEM_H + _MenuItem.ITEM_GAP
         self._top_items = [
-            _MenuItem(screen_x + 10, bu_y - i * gap, lbl, act)
+            _MenuItem(screen_x + 10, screen_y - i * gap, lbl, act)
             for i, (lbl, act) in enumerate(entries)
         ]
         self._sub_levels = []
@@ -185,32 +200,49 @@ class MenuRenderer:
 
     # ---- Drawing ----
 
-    def draw(self, ui):
+    def get_render_commands(self):
+        """Return a list of draw command dicts for the entire menu."""
         if not self.visible:
-            return
+            return []
 
-        # Top level — bounds already in bottom-up, pass directly to DC
+        commands = []
         bx, by, bw, bh = self._bounds(self._top_items)
-        ui.quad(bx, by, bw, bh, (0.18, 0.18, 0.22), 0.95)
-        ui.outline(bx, by, bw, bh, (0.4, 0.4, 0.5))
+        commands.append({
+            'type': 'quad',
+            'x': bx, 'y': by, 'w': bw, 'h': bh,
+            'color': (0.18, 0.18, 0.22), 'alpha': 0.95,
+        })
+        commands.append({
+            'type': 'outline',
+            'x': bx, 'y': by, 'w': bw, 'h': bh,
+            'color': (0.4, 0.4, 0.5), 'alpha': 1.0,
+        })
         for item in self._top_items:
-            item.draw(ui, self._win_h)
+            commands.extend(item.get_render_commands(self._win_h))
 
         # Sub-levels
         for level in self._sub_levels:
             lbx, lby, lbw, lbh = self._bounds(level["items"])
-            ui.quad(lbx, lby, lbw, lbh, (0.22, 0.22, 0.25), 0.95)
-            ui.outline(lbx, lby, lbw, lbh, (0.5, 0.4, 0.4))
+            commands.append({
+                'type': 'quad',
+                'x': lbx, 'y': lby, 'w': lbw, 'h': lbh,
+                'color': (0.22, 0.22, 0.25), 'alpha': 0.95,
+            })
+            commands.append({
+                'type': 'outline',
+                'x': lbx, 'y': lby, 'w': lbw, 'h': lbh,
+                'color': (0.5, 0.4, 0.4), 'alpha': 1.0,
+            })
             for item in level["items"]:
-                item.draw(ui, self._win_h)
+                commands.extend(item.get_render_commands(self._win_h))
+
+        return commands
 
     # ---- Mouse handling ----
 
     def on_mouse_press(self, screen_x, screen_y, button):
         if not self.visible:
             return False
-
-        bu_y = self._flip(screen_y)  # top-down → bottom-up
 
         # Clear hovered state across all items
         self._clear_hover()
@@ -219,10 +251,10 @@ class MenuRenderer:
         while self._sub_levels:
             level = self._sub_levels[-1]
             lx, ly, lw, lh = self._bounds(level["items"])
-            if lx <= screen_x <= lx + lw and ly <= bu_y <= ly + lh:
+            if lx <= screen_x <= lx + lw and ly <= screen_y <= ly + lh:
                 if button == 1:
                     for item in reversed(level["items"]):
-                        if item.hit_test(screen_x, bu_y):
+                        if item.hit_test(screen_x, screen_y):
                             item.pressed = True
                             item.hovered = True
                             self._captured = item
@@ -234,9 +266,9 @@ class MenuRenderer:
 
         # Top level
         bx, by, bw, bh = self._bounds(self._top_items)
-        if bx <= screen_x <= bx + bw and by <= bu_y <= by + bh:
+        if bx <= screen_x <= bx + bw and by <= screen_y <= by + bh:
             for item in reversed(self._top_items):
-                if item.hit_test(screen_x, bu_y):
+                if item.hit_test(screen_x, screen_y):
                     item.pressed = True
                     item.hovered = True
                     self._captured = item
@@ -255,9 +287,8 @@ class MenuRenderer:
         captured.pressed = False
         self._captured = None
         if button == 1:
-            bu_y = self._flip(screen_y)
             if (
-                captured.hit_test(screen_x, bu_y)
+                captured.hit_test(screen_x, screen_y)
                 and not captured.is_branch
             ):
                 action = captured.action
@@ -270,19 +301,18 @@ class MenuRenderer:
     def on_mouse_move(self, screen_x, screen_y):
         if not self.visible:
             return
-        bu_y = self._flip(screen_y)
         self._clear_hover()
 
         # Sub-levels deepest first
         for level in reversed(self._sub_levels):
             for item in reversed(level["items"]):
-                if item.hit_test(screen_x, bu_y):
+                if item.hit_test(screen_x, screen_y):
                     item.hovered = True
                     return
 
         # Top level
         for item in reversed(self._top_items):
-            if item.hit_test(screen_x, bu_y):
+            if item.hit_test(screen_x, screen_y):
                 item.hovered = True
                 return
 

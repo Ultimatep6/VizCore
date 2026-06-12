@@ -1,0 +1,16 @@
+=== CROSS-TASK INTEGRATION TEST (Code-Level) ===
+--- Integration: create widget -> data flows -> updates -> renders -> removes ---
+
+[1/8] MainLoopHandler created (Task 7)
+      data_bus type: DataBus
+[2/8] WidgetManager class verified (Task 4)
+      Required methods: 8/8 present
+[3/8] Registry lookup (Task 3): LinePlot
+[4/8] DataBus bridge (Task 8): pushed state with 0 keys
+[5/8] update_all in _on_tick (Task 9): VERIFIED
+[6/8] _render_widgets logic (Task 10): VERIFIED
+[7/8] Mouse event forwarding (Task 11): VERIFIED
+[8/8] GuiManager widget_manager param (Task 6): VERIFIED
+
+PASS: Cross-task integration verified at code level
+NOTE: Full instantiation requires ModernGL context (tested in test_widget_integration.py)

@@ -434,7 +434,7 @@ class LinePlot(BaseWidget):
                     leg_txt_scale, 0.45 * ui_scale
                 )  # Cap at a reasonable size
 
-                # TextRenderer uses Y=0 as Top.
+                # Y=0 is at the top of the screen for text.
                 leg_top_y = m + (self._legend_y_offset * ui_scale)
                 # Increased spacing from the color box (from +35 to +40) to make it less snug
                 leg_text_x = (

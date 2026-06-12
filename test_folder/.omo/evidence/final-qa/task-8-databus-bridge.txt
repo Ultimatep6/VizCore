@@ -1,0 +1,11 @@
+=== TASK 8: Verify push_payload in _on_tick ===
+103-            self._simulation.step(frame_time)
+104-            state = self._simulation.get_state()
+105-            if state:
+106:                self.data_bus.push_payload(state)
+107-            self.widget_manager.update_all()
+108-
+109-    def _on_mouse_press(self, x, y, button):
+
+get_state() returns: dict
+PASS: get_state() returns dict with 0 top-level keys

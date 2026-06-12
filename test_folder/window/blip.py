@@ -39,7 +39,7 @@ class Blips:
     def pick(self, x, y, vp, camera_pos, viewport_size):
         w, h = viewport_size
         ndc_x = 2.0 * x / w - 1.0
-        ndc_y = 1.0 - 2.0 * y / h
+        ndc_y = 2.0 * y / h - 1.0
         near = np.array([ndc_x, ndc_y, -1.0, 1.0])
         far = np.array([ndc_x, ndc_y, 1.0, 1.0])
         inv_vp = np.linalg.inv(vp)

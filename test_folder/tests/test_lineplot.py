@@ -24,13 +24,13 @@ import moderngl
 import moderngl_window as mglw
 
 # Ensure test_folder root is on sys.path
-_TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+_TEST_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
-from widget_base import DrawingContext
+from widgets.widget_base import DrawingContext
 from widgets.line_plot import LinePlot
-from widget_gui import MenuRenderer
+from widgets.widget_gui import MenuRenderer
 
 from vizcore.renderer.renderer import Renderer
 from vizcore.bus.data_bus import DataBus
@@ -163,7 +163,13 @@ class LinePlotTest(mglw.WindowConfig):
         self.widget.draw(self._drawing_ctx)
 
         # Draw context menu overlay
-        self._menu_renderer.draw(self._drawing_ctx)
+        for cmd in self._menu_renderer.get_render_commands():
+            if cmd['type'] == 'quad':
+                self._drawing_ctx.quad(cmd['x'], cmd['y'], cmd['w'], cmd['h'], cmd['color'], cmd['alpha'])
+            elif cmd['type'] == 'outline':
+                self._drawing_ctx.outline(cmd['x'], cmd['y'], cmd['w'], cmd['h'], cmd['color'], cmd['alpha'])
+            elif cmd['type'] == 'text':
+                self._drawing_ctx.text(cmd['text'], cmd['x'], cmd['y'], cmd['color'], cmd['scale'], cmd['anchor_x'], cmd['anchor_y'])
 
     # =================================================================
     # Input handling

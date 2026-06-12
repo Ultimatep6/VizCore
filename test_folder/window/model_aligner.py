@@ -3,8 +3,8 @@ import os
 import moderngl
 from vizcore.utils import get_total_rot_matrix, get_model_matrix
 from vizcore.renderer.camera import Camera
-from guiRenderer import GuiRenderer
-from elements import Button, Slider
+from settings_gui.guiRenderer import GuiRenderer
+from settings_gui.elements import Button, Slider
 
 from . import settings
 
@@ -311,24 +311,22 @@ class ModelAligner:
     def on_mouse_press(self, x, y, button):
         if not self.active:
             return False
-        fy = self.renderer.height - y
-
         # Check sidebar controls first
         for s in self._sliders:
-            if s.hit_test(x, fy):
-                s.on_mouse_press(x, fy, button)
+            if s.hit_test(x, y):
+                s.on_mouse_press(x, y, button)
                 self._drag_capture = ("slider", s)
                 return True
         for btn in (self._btn_done, self._btn_reset, self._btn_close):
-            if btn.hit_test(x, fy):
+            if btn.hit_test(x, y):
                 btn.hovered = True
-                btn.on_mouse_press(x, fy, button)
+                btn.on_mouse_press(x, y, button)
                 self._drag_capture = ("btn", btn)
                 return True
 
         # Check if in viewport → orbit camera
         vx, vy, vw, vh = self._view_rect
-        if vx <= x <= vx + vw and vy <= fy <= vy + vh:
+        if vx <= x <= vx + vw and vy <= y <= vy + vh:
             self._cam.on_mouse_press(1, x, y)
             self._drag_capture = ("orbit", None)
             self._last_mouse = (x, y)
@@ -336,7 +334,7 @@ class ModelAligner:
 
         # Click outside panel → close
         px, py, pw, ph = self._panel_rect
-        if not (px <= x <= px + pw and vy <= fy <= vy + ph):
+        if not (px <= x <= px + pw and vy <= y <= vy + ph):
             self.close()
             return True
         return True
@@ -347,11 +345,10 @@ class ModelAligner:
         if not hasattr(self, "_drag_capture") or self._drag_capture is None:
             return
         typ, obj = self._drag_capture
-        fy = self.renderer.height - y
         if typ == "slider":
-            obj.on_mouse_release(x, fy, button)
+            obj.on_mouse_release(x, y, button)
         elif typ == "btn":
-            obj.on_mouse_release(x, fy, button)
+            obj.on_mouse_release(x, y, button)
         elif typ == "orbit":
             self._cam.on_mouse_release(1)
         self._drag_capture = None
@@ -362,9 +359,8 @@ class ModelAligner:
         if not hasattr(self, "_drag_capture") or self._drag_capture is None:
             return
         typ, obj = self._drag_capture
-        fy = self.renderer.height - y
         if typ == "slider":
-            obj.on_mouse_drag(x, fy, dx, dy, 1)
+            obj.on_mouse_drag(x, y, dx, dy, 1)
         elif typ == "orbit":
             self._cam.on_mouse_drag(x, y)
 

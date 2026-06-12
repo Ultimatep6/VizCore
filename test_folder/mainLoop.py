@@ -11,13 +11,16 @@ from settings_gui.blipGui import BlipGui
 from core.simulation import SimContainer
 from window.mainWindow import SimulationRoom
 from tile_management.tile import TileManager
-from input_state import InputState
+from utils.input_state import InputState
 from window.blip import Blips
 from window.model_aligner import ModelAligner
-from mesh_loader import load_model
-from render_pipeline import render_tiles, render_gui
+from utils.mesh_loader import load_model
+from window.render_pipeline import render_tiles, render_gui
 from vizcore.utils import get_model_matrix
 from window import settings as window_settings
+from core.data_bus import DataBus
+from widgets.manager import WidgetManager
+from widgets.registry import default_registry
 
 
 class MainLoopHandler:
@@ -34,6 +37,7 @@ class MainLoopHandler:
         self._current_blip_idx = None
         self._paused = False
         self._fullscreen = fullscreen
+        self.data_bus = DataBus()
 
     def attach_simulation(self, simulation: SimContainer):
         if not callable(getattr(simulation, "step", None)):
@@ -45,7 +49,8 @@ class MainLoopHandler:
         wnd = self.dashboardInstance.wnd
         wnd._window.set_fullscreen(self._fullscreen)
         self.tileManager = TileManager(self.dashboardInstance)
-        self.guiManager = GuiManager(self.dashboardInstance)
+        self.widget_manager = WidgetManager(self.dashboardInstance, self.data_bus, default_registry)
+        self.guiManager = GuiManager(self.dashboardInstance, widget_manager=self.widget_manager)
         self.blip_gui = BlipGui(self.dashboardInstance,
                                on_load_new=self._on_blip_new_model,
                                on_load_version=self._on_blip_load_version,
@@ -73,17 +78,28 @@ class MainLoopHandler:
         rc.render_tileManager = self._render_tiles
         rc.render_guiManager = self._render_gui
         rc.render_nodes = self._render_nodes
+        rc.render_widgets = self._render_widgets
+
+    def _flip_mouse(self, y):
+        """Convert top-down moderngl_window coords to bottom-up."""
+        return self.dashboardInstance.wnd.height - y
 
     def _on_mouse(self, x, y, dx, dy):
+        y = self._flip_mouse(y)
         self.input.x, self.input.y = x, y
-        self.guiManager.on_mouse_move(x, y, dx, dy)
-        self.blip_gui.on_mouse_move(x, y, dx, dy)
+        self.guiManager.on_mouse_move(x, y, dx, -dy)
+        self.blip_gui.on_mouse_move(x, y, dx, -dy)
+        self.widget_manager.on_mouse_move(x, y)
+        if self.widget_manager.is_menu_open():
+            self.widget_manager.on_menu_mouse_move(x, y)
         if not self.guiManager.popup_visible:
             idx = self.tileManager.get_tile_index(x, y)
             self.tileManager.hovered_index = idx
 
     def _on_key_press(self, ctrl_pressed):
         self.input.ctrl_pressed = ctrl_pressed
+        if ctrl_pressed and self.widget_manager.is_menu_open():
+            self.widget_manager.close_context_menu()
 
     def _on_tick(self, time, frame_time):
         if self.model_aligner.active or self._paused:
@@ -92,14 +108,22 @@ class MainLoopHandler:
             getattr(self._simulation, "step", None)
         ):
             self._simulation.step(frame_time)
+            state = self._simulation.get_state()
+            if state:
+                self.data_bus.push_payload(state)
+            self.widget_manager.update_all()
 
     def _on_mouse_press(self, x, y, button):
+        y = self._flip_mouse(y)
         if self.model_aligner.active:
             self.model_aligner.on_mouse_press(x, y, button)
             return
         if self.guiManager.on_mouse_press(x, y, button):
             return
         if self.blip_gui.on_mouse_press(x, y, button):
+            return
+        if self.widget_manager and self.widget_manager.is_menu_open():
+            self.widget_manager.on_mouse_press(x, y, button)
             return
         if button == 1:
             border = self.tileManager.get_border_at(x, y, threshold=5)
@@ -111,12 +135,20 @@ class MainLoopHandler:
                 self.tileManager.set_focus(idx)
         elif button == 2:
             if self.input.ctrl_pressed:
+                self.widget_manager.close_context_menu()
                 idx = self.tileManager.get_tile_index(x, y)
                 if idx is not None:
                     self.tileManager.set_focus(idx)
                     tile = self.tileManager.tiles[idx]
                     self.guiManager.show_popup(x, y, tile=tile)
             else:
+                idx = self.tileManager.get_tile_index(x, y)
+                if idx is not None:
+                    tile = self.tileManager.tiles[idx]
+                    if tile.widget:
+                        self.guiManager.close_popup()
+                        self.widget_manager.open_context_menu(tile, x, y)
+                        return
                 if not hasattr(self, "_last_vp"):
                     return
                 w = self.dashboardInstance.wnd.width
@@ -137,8 +169,12 @@ class MainLoopHandler:
                                        repo_entries=repo_entries)
 
     def _on_mouse_release(self, x, y, button):
+        y = self._flip_mouse(y)
         if self.model_aligner.active:
             self.model_aligner.on_mouse_release(x, y, button)
+            return
+        if self.widget_manager.is_menu_open():
+            self.widget_manager.on_mouse_release(x, y, button)
             return
         self.guiManager.on_mouse_release(x, y, button)
         self.blip_gui.on_mouse_release(x, y, button)
@@ -146,16 +182,21 @@ class MainLoopHandler:
             self.input.dragging_border = False
 
     def _on_scroll(self, x_offset, y_offset):
-        pass
+        if not self.input.ctrl_pressed:
+            self.widget_manager.on_mouse_scroll(self.input.x, self.input.y, x_offset, y_offset)
 
     def _on_mouse_drag(self, x, y, dx, dy):
+        y = self._flip_mouse(y)
         if self.model_aligner.active:
-            self.model_aligner.on_mouse_drag(x, y, dx, dy)
+            self.model_aligner.on_mouse_drag(x, y, dx, -dy)
+            return
+        if not self.input.ctrl_pressed and self.widget_manager._widgets:
+            self.widget_manager.on_mouse_drag(x, y, dx, -dy, 0)
             return
         if self.input.dragging_border:
-            self.tileManager.resize_border(x - dx, y - dy, dx, dy, threshold=15)
+            self.tileManager.resize_border(x - dx, y - (-dy), dx, -dy, threshold=15)
         else:
-            self.guiManager.on_mouse_drag(x, y, dx, dy)
+            self.guiManager.on_mouse_drag(x, y, dx, -dy)
 
     def _on_key_event(self, key, action, modifiers):
         wnd = self.dashboardInstance.wnd
@@ -193,11 +234,18 @@ class MainLoopHandler:
             render_gui(self.dashboardInstance.ctx, self.guiManager)
         self.blip_gui.render()
 
+    def _render_widgets(self):
+        if self.widget_manager:
+            self.widget_manager.render_all()
+            if self.widget_manager.is_menu_open():
+                self.widget_manager.draw_menu(self.widget_manager._drawing_ctx)
+
     def _on_resize(self, width, height):
         self.guiManager.on_resize(width, height)
         self.blip_gui.on_resize(width, height)
         self.model_aligner.on_resize(width, height)
         self.tileManager = TileManager(self.dashboardInstance)
+        self.widget_manager.on_resize(width, height)
 
     def _render_nodes(self, vp, camera_pos):
         self._last_vp = vp
@@ -396,7 +444,7 @@ class MainLoopHandler:
 
 
 if __name__ == "__main__":
-    from exampleSim import ExampleSim
+    from examples.exampleSim import ExampleSim
 
     main = MainLoopHandler(fullscreen=True)
     main.attach_simulation(ExampleSim())

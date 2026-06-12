@@ -1,0 +1,3 @@
+=== TASK 7: Verify MainLoopHandler creates data_bus ===
+data_bus type: <class 'core.data_bus.DataBus'>
+PASS: data_bus is DataBus instance

@@ -9,16 +9,16 @@ const vec2 QUAD[6] = vec2[6](
     vec2(0.0, 1.0)
 );
 
-in vec4 inst_rect;   // x, y, w, h  in NDC
-in vec4 inst_color;  // r, g, b, a  neon tint
-
+uniform vec4 inst_rect;
 out vec2 v_uv;
-out vec4 v_color;
+
+uniform vec2 u_resolution;
 
 void main() {
-    vec2 vert     = QUAD[gl_VertexID];
-    v_uv          = vert;
-    v_color       = inst_color;
-    vec2 world_pos = inst_rect.xy + vert * inst_rect.zw;
-    gl_Position   = vec4(world_pos, 0.0, 1.0);
+    vec2 vert    = QUAD[gl_VertexID];
+    v_uv         = vert;
+
+    vec2 pos_px  = inst_rect.xy + vert * inst_rect.zw;
+    vec2 ndc     = (pos_px / u_resolution) * 2.0 - 1.0;
+    gl_Position  = vec4(ndc, 0.0, 1.0);
 }

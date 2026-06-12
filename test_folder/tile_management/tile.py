@@ -207,9 +207,10 @@ class TileManager:
         gap_y = settings.DASHBOARD_CENTER_GAP_Y or settings.TILE_MARGIN_Y
 
         x = [0, (self.width + gap_x) / 2]
-        y = [0, (self.height + gap_y) / 2]
+        y_topdown = [0, (self.height + gap_y) / 2]
         width = (self.width - gap_x) / 2
         height = (self.height - gap_y) / 2
+        y = [self.height - ytd - height for ytd in y_topdown]
         for i, j in product(x, y):
             self.tiles.append(Tile(i, j, width, height))
 

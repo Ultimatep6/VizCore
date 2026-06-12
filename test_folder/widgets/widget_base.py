@@ -3,6 +3,8 @@ import numpy as np
 import moderngl
 import pyglet
 
+from settings import WIDGET_LINE_COLORS
+
 _SHADER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shaders")
 
 
@@ -22,12 +24,16 @@ class DrawingContext:
     _ui_program = None
     _quad_vbo = None
     _outline_vbo = None
+    _quad_vao = None
+    _outline_vao = None
     _initialized = False
 
-    def __init__(self, renderer, width, height):
+    def __init__(self, renderer, width, height, offset_x=0, offset_y=0):
         self._renderer = renderer
         self._w = width
         self._h = height
+        self._ox = offset_x
+        self._oy = offset_y
         DrawingContext._init_shared(renderer.ctx)
 
     @classmethod
@@ -49,7 +55,18 @@ class DrawingContext:
             np.array([0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0], dtype="f4").tobytes()
         )
 
+        cls._quad_vao = ctx.vertex_array(cls._ui_program, [(cls._quad_vbo, "2f", "in_vert")])
+        cls._outline_vao = ctx.vertex_array(cls._ui_program, [(cls._outline_vbo, "2f", "in_vert")])
+
         cls._initialized = True
+
+    def set_resolution(self, w, h):
+        self._w = w
+        self._h = h
+
+    def set_offset(self, x, y):
+        self._ox = x
+        self._oy = y
 
     @property
     def width(self) -> int:
@@ -67,27 +84,21 @@ class DrawingContext:
             x, y: Bottom-left corner in pixel coordinates.
             w, h: Width and height in pixels.
             color: (r, g, b) tuple of floats in [0, 1].
-            alpha: Opacity in [0, 1]. Values < 1 require BLEND enabled.
+            alpha: Opacity in [0, 1]. BLEND is always enabled.
         """
         r, g, b = color
         prog = self._ui_program
         prog["u_resolution"] = (self._w, self._h)
-        prog["u_pos"] = (x, y)
+        prog["u_pos"] = (self._ox + x, self._oy + y)
         prog["u_size"] = (w, h)
         prog["u_color"] = (r, g, b, alpha)
 
-        if alpha < 1.0:
-            self._renderer.ctx.enable(moderngl.BLEND)
-            self._renderer.ctx.blend_func = (
-                moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA,
-            )
+        self._renderer.ctx.enable(moderngl.BLEND)
+        self._renderer.ctx.blend_func = (
+            moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA,
+        )
 
-        vao = self._renderer.ctx.vertex_array(prog, [(self._quad_vbo, "2f", "in_vert")])
-        vao.render(moderngl.TRIANGLE_STRIP)
-        vao.release()
-
-        if alpha < 1.0:
-            self._renderer.ctx.disable(moderngl.BLEND)
+        self._quad_vao.render(moderngl.TRIANGLE_STRIP)
 
     def outline(self, x, y, w, h, color=(0.8, 0.8, 0.8), alpha=1.0):
         """
@@ -102,12 +113,16 @@ class DrawingContext:
         r, g, b = color
         prog = self._ui_program
         prog["u_resolution"] = (self._w, self._h)
-        prog["u_pos"] = (x, y)
+        prog["u_pos"] = (self._ox + x, self._oy + y)
         prog["u_size"] = (w, h)
         prog["u_color"] = (r, g, b, alpha)
-        vao = self._renderer.ctx.vertex_array(prog, [(self._outline_vbo, "2f", "in_vert")])
-        vao.render(moderngl.LINE_LOOP)
-        vao.release()
+
+        self._renderer.ctx.enable(moderngl.BLEND)
+        self._renderer.ctx.blend_func = (
+            moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA,
+        )
+
+        self._outline_vao.render(moderngl.LINE_LOOP)
 
     def h_line(self, y, x1, x2, color=(0.6, 0.6, 0.6), alpha=1.0, thickness=1.0):
         """Draw a horizontal line segment."""
@@ -129,8 +144,8 @@ class DrawingContext:
             font_size=max(1, int(scale * 20)),
             anchor_x=anchor_x,
             anchor_y=anchor_y,
-            x=int(x),
-            y=int(y),
+            x=int(self._ox + x),
+            y=int(self._oy + y),
         )
         lbl.draw()
 
@@ -163,14 +178,7 @@ class Widget:
     transparent = True
     required_shape = None
 
-    COLORS = [
-        (0.2, 0.85, 0.2),   # Green
-        (0.2, 0.5, 0.85),   # Blue
-        (0.85, 0.2, 0.2),   # Red
-        (0.85, 0.85, 0.2),  # Yellow
-        (0.85, 0.2, 0.85),  # Magenta
-        (0.2, 0.85, 0.85),  # Cyan
-    ]
+    COLORS = list(WIDGET_LINE_COLORS)
 
     def __init__(self):
         self._tile_x = 0
@@ -192,6 +200,15 @@ class Widget:
         """
         raise NotImplementedError
 
+    def teardown(self):
+        """
+        Clean up GPU resources and signal bindings.
+
+        Called when the widget is being destroyed. Override in subclass
+        to release GPU buffers, detach signals, etc.
+        """
+        pass
+
     def update(self):
         """
         Called every frame before draw().
@@ -211,17 +228,20 @@ class Widget:
 
     # --- Input handling (override as needed) ---
 
-    def on_mouse_press(self, x, y, button, modifiers):
+    def on_mouse_press(self, x, y, button):
         """Called when a mouse button is pressed inside the tile."""
 
-    def on_mouse_release(self, x, y, button, modifiers):
+    def on_mouse_release(self, x, y, button):
         """Called when a mouse button is released inside the tile."""
 
-    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+    def on_mouse_drag(self, x, y, dx, dy, buttons):
         """Called when the mouse is dragged inside the tile."""
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
         """Called when the mouse wheel is scrolled inside the tile."""
+
+    def on_mouse_move(self, x, y):
+        """Called when the mouse moves inside the tile."""
 
     # --- Public helpers for subclass use ---
 
@@ -378,5 +398,7 @@ class Widget:
         self._tile_w = w
         self._tile_h = h
         if self._drawing_ctx is not None:
+            self._drawing_ctx._ox = x
+            self._drawing_ctx._oy = y
             self._drawing_ctx._w = w
             self._drawing_ctx._h = h

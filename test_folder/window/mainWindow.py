@@ -7,7 +7,7 @@ import os
 import sys
 
 from vizcore.renderer.camera import Camera
-from mesh_loader import load_model, create_example_cube
+from utils.mesh_loader import load_model, create_example_cube
 from vizcore.utils import get_total_rot_matrix, get_model_matrix
 
 from . import settings
@@ -467,6 +467,9 @@ class SimulationRoom(mglw.WindowConfig):
 
         self.ctx.disable(moderngl.DEPTH_TEST)
         self.ctx.depth_mask = False
+
+        if cb := getattr(self.render_callbacks, "render_widgets", None):
+            cb()
 
         if cb := getattr(self.render_callbacks, "render_tileManager", None):
             cb()

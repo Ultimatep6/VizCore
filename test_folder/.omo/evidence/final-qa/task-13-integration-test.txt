@@ -1,0 +1,23 @@
+=== TASK 13: Run integration test ===
+test_databus_receives_simulation_data (__main__.TestWidgetLifecycle.test_databus_receives_simulation_data)
+DataBus receives flattened state from ExampleSim. ... ok
+test_databus_scalar_data_for_lineplot (__main__.TestWidgetLifecycle.test_databus_scalar_data_for_lineplot)
+DataBus can receive scalar data suitable for LinePlot. ... ok
+test_full_lifecycle (__main__.TestWidgetLifecycle.test_full_lifecycle)
+Complete lifecycle: create -> data flow -> update -> remove. ... ok
+test_widget_creation (__main__.TestWidgetLifecycle.test_widget_creation)
+Widget can be instantiated and registered in WidgetManager. ... ok
+test_widget_manager_update_all (__main__.TestWidgetLifecycle.test_widget_manager_update_all)
+WidgetManager.update_all() calls update() on every widget. ... ok
+test_widget_removal_cleans_up (__main__.TestWidgetLifecycle.test_widget_removal_cleans_up)
+Removing a widget deletes it from WidgetManager. ... ok
+test_widget_update_multiple_ticks (__main__.TestWidgetLifecycle.test_widget_update_multiple_ticks)
+Simulate multiple ticks: DataBus receives data and widget updates. ... ok
+test_widget_update_reads_data (__main__.TestWidgetLifecycle.test_widget_update_reads_data)
+Widget.update() pulls latest data from DataBus. ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.075s
+
+OK
+PASS: Integration test completed

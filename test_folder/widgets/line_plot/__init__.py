@@ -1,8 +1,19 @@
 import numpy as np
 
-from widget_base import Widget
+from widgets.widget_base import Widget
 from components.axis_grid import AxisGrid
 from components.legend import Legend
+from settings import LEGEND_BG_ALPHA
+from .settings import (
+    PLOT_MARGIN,
+    PLOT_LABEL_FONT_SCALE,
+    PLOT_MAX_POINTS,
+    PLOT_UI_SCALE_REF,
+    LEGEND_HOVER_WIDTH_MIN,
+    LEGEND_HOVER_CURSOR_GAP,
+    LEGEND_HOVER_BOTTOM_PAD,
+    LEGEND_RIGHT_PAD,
+)
 
 
 class LinePlot(Widget):
@@ -25,7 +36,7 @@ class LinePlot(Widget):
     transparent = True
     required_shape = [(1,)]
 
-    def __init__(self, max_points=1000, margin=50):
+    def __init__(self, max_points=PLOT_MAX_POINTS, margin=PLOT_MARGIN):
         """
         Args:
             max_points: Number of data points to buffer per signal.
@@ -50,20 +61,18 @@ class LinePlot(Widget):
         self._grid = None
         self._legend = None
 
-        # Legend dimensions
-        self._legend_w = 200
-        self._legend_h = 100
-        self._legend_x_offset = 10
-        self._legend_y_offset = 30
+        # Hover legend state
+        self._hover_x = -1
+        self._hover_y = -1
+        self._hover_active = False
 
         # Font scales
-        self.label_font_scale = 0.5
-        self.legend_font_scale = 0.5
+        self.label_font_scale = PLOT_LABEL_FONT_SCALE
 
     def setup(self):
         """Called once. Creates AxisGrid, Legend, and pre-loads the line_plot shader."""
         self._grid = AxisGrid()
-        self._legend = Legend(alpha=0.85, font_scale=self.legend_font_scale)
+        self._legend = Legend(alpha=LEGEND_BG_ALPHA, right_pad=LEGEND_RIGHT_PAD)
 
         # Force early loading of the line_plot shader
         if self._renderer is not None:
@@ -88,6 +97,23 @@ class LinePlot(Widget):
         """Remove the LineBuffer when a signal is detached."""
         self._buffers.pop(signal_name, None)
 
+    def teardown(self):
+        """Detach all signals and clear all buffers."""
+        for sig in list(self._bound_signals):
+            self.detach_signal(sig)
+        self._buffers.clear()
+        self._bound_signals.clear()
+
+    # --- Input ---
+
+    def on_mouse_move(self, x, y):
+        """Track cursor position for hover legend."""
+        self._hover_x = x
+        self._hover_y = y
+        m = self._margin
+        w, h = self.size
+        self._hover_active = (m <= x <= w - m and m <= y <= h - m)
+
     # --- Per-frame update ---
 
     def update(self):
@@ -105,7 +131,11 @@ class LinePlot(Widget):
         for name, buf in self._buffers.items():
             val = self.read(name)
             if val is not None:
-                buf.push(float(np.asarray(val).flat[0]))
+                try:
+                    scalar = float(np.asarray(val).flat[0])
+                except (TypeError, ValueError):
+                    continue
+                buf.push(scalar)
                 dmin, dmax = buf.range
                 if dmin is not None:
                     any_data = True
@@ -128,17 +158,13 @@ class LinePlot(Widget):
 
     def draw(self, ui):
         """
-        Render the plot: axis grid, data lines, legend, axis labels.
+        Render the plot: axis grid, data lines, hover legend, axis labels.
         """
         w, h = self.size
         m = self._margin
 
-        # Compute layout
-        ui_scale = h / 600.0
-        leg_w = self._legend_w * ui_scale if self._buffers else 0
-        leg_h = self._legend_h * ui_scale if self._buffers else 0
-
-        plot_w = w - 2 * m - (leg_w + 30 * ui_scale)
+        ui_scale = h / PLOT_UI_SCALE_REF
+        plot_w = w - 2 * m
         plot_h = h - 2 * m
         plot_x = m
         plot_y = m
@@ -155,21 +181,29 @@ class LinePlot(Widget):
         ctx.scissor = (self._tile_x + int(plot_x),
                        self._tile_y + int(plot_y),
                        int(plot_w), int(plot_h))
-        for i, (name, buf) in enumerate(self._buffers.items()):
-            color = self.COLORS[i % len(self.COLORS)]
-            buf.draw(ui, plot_x, plot_y, plot_w, plot_h,
-                     self.y_min, self.y_max, color)
-        ctx.scissor = None
-
-        # 3. Legend
-        if self._buffers:
-            leg_x = w - m - leg_w - (self._legend_x_offset * ui_scale)
-            leg_y = h - m - leg_h - (self._legend_y_offset * ui_scale)
-
-            entries = []
+        try:
             for i, (name, buf) in enumerate(self._buffers.items()):
                 color = self.COLORS[i % len(self.COLORS)]
-                entries.append((self._display_name(name), color))
+                buf.draw(ui, self._tile_x + plot_x, self._tile_y + plot_y, plot_w, plot_h,
+                         self.y_min, self.y_max, color)
+        finally:
+            ctx.scissor = None
+
+        # 3. Hover legend (appears near cursor when hovering over plot area)
+        if self._hover_active and self._buffers:
+            entries = [(self._display_name(name), self.COLORS[i % len(self.COLORS)])
+                       for i, (name, buf) in enumerate(self._buffers.items())]
+
+            leg_w = max(LEGEND_HOVER_WIDTH_MIN, self._legend.suggest_width(entries))
+            leg_h = len(entries) * self._legend.entry_height + LEGEND_HOVER_BOTTOM_PAD
+
+            leg_x = self._hover_x + LEGEND_HOVER_CURSOR_GAP
+            leg_y = self._hover_y + LEGEND_HOVER_CURSOR_GAP
+
+            if leg_x + leg_w > w - m:
+                leg_x = self._hover_x - leg_w - LEGEND_HOVER_CURSOR_GAP
+            if leg_y + leg_h > h - m:
+                leg_y = self._hover_y - leg_h - LEGEND_HOVER_CURSOR_GAP
 
             self._legend.draw(ui, leg_x, leg_y, leg_w, leg_h, entries)
 
@@ -185,12 +219,13 @@ class LinePlot(Widget):
             min_y_off = (d_min - self.y_min) / y_span * plot_h
             mid_y = (d_max + d_min) / 2.0
 
-            ui.text(f"{d_max:.1f}", m - 50 * txt_scale,
-                    plot_y + max_y_off - 8 * txt_scale, scale=txt_scale)
-            ui.text(f"{mid_y:.1f}", m - 50 * txt_scale,
-                    plot_y + plot_h / 2 - 4 * txt_scale, scale=txt_scale)
-            ui.text(f"{d_min:.1f}", m - 50 * txt_scale,
-                    plot_y + min_y_off - 8 * txt_scale, scale=txt_scale)
+            label_x = m - 5
+            ui.text(f"{d_max:.1f}", label_x,
+                    plot_y + max_y_off, scale=txt_scale, anchor_x="right")
+            ui.text(f"{mid_y:.1f}", label_x,
+                    plot_y + plot_h / 2, scale=txt_scale, anchor_x="right")
+            ui.text(f"{d_min:.1f}", label_x,
+                    plot_y + min_y_off, scale=txt_scale, anchor_x="right")
 
     # --- Context menu ---
 

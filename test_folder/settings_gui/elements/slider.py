@@ -1,5 +1,5 @@
-from guiElement import GUIElement
-from guiRenderer import GuiRenderer
+from settings_gui.guiElement import GUIElement
+from settings_gui.guiRenderer import GuiRenderer
 
 
 class Slider(GUIElement):
