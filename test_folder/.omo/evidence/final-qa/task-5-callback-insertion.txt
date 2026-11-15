@@ -1,0 +1,7 @@
+=== TASK 5: Verify render_widgets callback position ===
+471:        if cb := getattr(self.render_callbacks, "render_widgets", None):
+82:        rc.render_widgets = self._render_widgets
+224:    def _render_widgets(self):
+
+=== Verify callback is between render_nodes and render_tileManager ===
+PASS: render_widgets is between render_nodes and render_tileManager

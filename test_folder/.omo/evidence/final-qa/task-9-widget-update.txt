@@ -1,0 +1,8 @@
+=== TASK 9: Verify update_all in _on_tick ===
+105-            if state:
+106-                self.data_bus.push_payload(state)
+107:            self.widget_manager.update_all()
+108-
+109-    def _on_mouse_press(self, x, y, button):
+
+PASS: update_all is called inside _on_tick

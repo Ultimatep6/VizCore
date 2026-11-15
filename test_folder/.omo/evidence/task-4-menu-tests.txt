@@ -1,0 +1,39 @@
+test_clamp_does_nothing_when_menu_fits (tests.test_menu_state.TestMenuClamp.test_clamp_does_nothing_when_menu_fits)
+When menu fits entirely within bounds, no shift occurs. ... ok
+test_clamp_shifts_menu_left_when_off_right_edge (tests.test_menu_state.TestMenuClamp.test_clamp_shifts_menu_left_when_off_right_edge)
+When menu extends beyond right edge, _clamp shifts it left. ... ok
+test_clamp_shifts_menu_up_when_off_bottom (tests.test_menu_state.TestMenuClamp.test_clamp_shifts_menu_up_when_off_bottom)
+When menu extends below window bottom, _clamp shifts it up. ... ok
+test_click_on_branch_opens_submenu (tests.test_menu_state.TestMenuClickBehavior.test_click_on_branch_opens_submenu)
+Click on a branch item (is_branch=True) opens submenu. ... ok
+test_click_on_item_closes_menu_after_callback (tests.test_menu_state.TestMenuClickBehavior.test_click_on_item_closes_menu_after_callback)
+Click on a button item triggers callback then closes menu. ... ok
+test_click_outside_menu_closes_menu (tests.test_menu_state.TestMenuClickBehavior.test_click_outside_menu_closes_menu)
+Click outside menu bounds closes menu without callback. ... ok
+test_close_clears_all_items (tests.test_menu_state.TestMenuOpenClose.test_close_clears_all_items)
+close() empties _top_items and _sub_levels. ... ok
+test_close_sets_visible_false (tests.test_menu_state.TestMenuOpenClose.test_close_sets_visible_false)
+close() sets visible to False. ... ok
+test_menu_starts_invisible (tests.test_menu_state.TestMenuOpenClose.test_menu_starts_invisible)
+Menu is invisible before any open() call. ... ok
+test_open_positions_item_correctly (tests.test_menu_state.TestMenuOpenClose.test_open_positions_item_correctly)
+open() creates _MenuItem at converted bottom-up coordinates. ... ok
+test_open_positions_multiple_items_vertically (tests.test_menu_state.TestMenuOpenClose.test_open_positions_multiple_items_vertically)
+open() stacks multiple items vertically (bottom-up). ... ok
+test_open_sets_visible_true (tests.test_menu_state.TestMenuOpenClose.test_open_sets_visible_true)
+open() sets visible to True. ... ok
+test_open_close_open_sequence (tests.test_menu_state.TestMenuStateMachine.test_open_close_open_sequence)
+Multiple open/close cycles maintain correct state. ... ok
+test_submenu_nesting_deeper (tests.test_menu_state.TestMenuStateMachine.test_submenu_nesting_deeper)
+Can open submenu then close it, returning to parent menu. ... ok
+test_submenu_items_maintain_vertical_stack (tests.test_menu_state.TestMenuSubmenuPositioning.test_submenu_items_maintain_vertical_stack)
+Submenu items are stacked vertically like top-level items. ... ok
+test_submenu_opens_left_when_right_would_overflow (tests.test_menu_state.TestMenuSubmenuPositioning.test_submenu_opens_left_when_right_would_overflow)
+Submenu flips to left side when it would overflow right edge. ... ok
+test_submenu_opens_to_right_of_branch (tests.test_menu_state.TestMenuSubmenuPositioning.test_submenu_opens_to_right_of_branch)
+Submenu appears to the right of parent branch by default. ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.217s
+
+OK

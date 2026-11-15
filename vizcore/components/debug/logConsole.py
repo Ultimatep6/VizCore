@@ -4,9 +4,9 @@ import itertools
 from datetime import datetime
 
 import numpy as np
+import pyglet
 
 from vizcore.components.base.baseWidget import BaseWidget
-from vizcore.text.fontAtlas import FontAtlas, TextRenderer
 
 
 class LogConsole(BaseWidget):
@@ -22,8 +22,7 @@ class LogConsole(BaseWidget):
     def __init__(self, rect=None, max_history=50000):
         super().__init__(rect)
 
-        self._text_renderer = None
-        self._logger_text_renderer = None
+        self._text_renderer = True  # pyglet-based, always available
         self._renderer = None
 
         # 1. Data Storage: Deque prevents infinite memory growth
@@ -117,22 +116,6 @@ class LogConsole(BaseWidget):
 
     def bind_renderer(self, renderer):
         self._renderer = renderer
-        self._text_renderer = getattr(renderer, "text_renderer", None)
-
-        if self._logger_text_renderer is None:
-
-            class _LoggerTextWindow:
-                def __init__(self, ctx):
-                    self.ctx = ctx
-                    self.texture = None
-
-            logger_window = _LoggerTextWindow(renderer.ctx)
-            hack_atlas = FontAtlas(
-                font_path="vizcore/text/data/Hack-Regular.ttf", font_size=42
-            )
-            self._logger_text_renderer = TextRenderer(logger_window, hack_atlas)
-
-        self._text_renderer = self._logger_text_renderer
 
     def bind_camera(self, camera):
         self.camera = camera
@@ -299,9 +282,16 @@ class LogConsole(BaseWidget):
                 if current_y + scaled_line_height > self.margin:
                     level, text = item
                     color = self.level_colors.get(level, (1.0, 1.0, 1.0, 1.0))
-                    self._text_renderer.render_text(
-                        text, self.margin, current_y, color=color, scale=txt_scale
-                    )
+                    r, g, b, a = color
+                    pyglet.text.Label(
+                        text,
+                        color=(int(r*255), int(g*255), int(b*255), int(a*255)),
+                        font_size=max(1, int(txt_scale * 42)),
+                        x=int(self.margin),
+                        y=int(current_y),
+                        anchor_x="left",
+                        anchor_y="bottom",
+                    ).draw()
                 current_y += scaled_line_height
             else:
                 # Spacer gap

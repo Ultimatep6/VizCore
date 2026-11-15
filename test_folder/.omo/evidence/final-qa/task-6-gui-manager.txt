@@ -1,0 +1,11 @@
+=== TASK 6: Verify GuiManager widget_manager parameter ===
+7:    def __init__(self, mainWindow, widgets=None, widget_manager=None):
+10:        self._widget_manager = widget_manager
+71:        widget_names = self._widget_manager.list_names() if self._widget_manager else self._widgets
+87:        if self._widget_manager is not None:
+88:            self._widget_manager.create_widget(self._popup_tile, name)
+93:        if self._widget_manager is not None:
+94:            self._widget_manager.destroy_widget(tile)
+
+Constructor params: ['self', 'mainWindow', 'widgets', 'widget_manager']
+PASS: widget_manager parameter present

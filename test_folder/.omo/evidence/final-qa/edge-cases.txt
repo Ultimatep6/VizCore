@@ -1,0 +1,43 @@
+=== EDGE CASE TESTS (Code-Level) ===
+--- Edge Case Tests ---
+
+[Edge 1] Empty DataBus state
+         PASS: No crash with empty DataBus
+
+[Edge 2] Invalid widget name lookup
+         PASS: Returns None for invalid widget (got: None)
+
+[Edge 3] Registry list_names: ['Line Plot']
+         PASS: Returns expected widget names
+
+[Edge 4] Empty SimContainer state: dict with 0 keys
+         PASS: Returns empty dict, no crash
+
+[Edge 5] DataBus push empty dict
+         PASS: No crash with empty payload
+
+[Edge 6] DataBus push None
+         INFO: Raises AttributeError for None (expected: dict)
+
+[Edge 7] 100 rapid DataBus pushes
+         PASS: No crash with rapid pushes
+
+[Edge 8] GuiManager widget_manager defaults to None
+         PASS: Backward compatible (works without widget_manager)
+
+[Edge 9] _render_widgets early return on ctrl
+         PASS: Skips rendering when ctrl is pressed
+
+[Edge 10] No BLEND disable in widget_base.py
+          PASS: BLEND state preserved
+
+[Edge 11] LinePlot scissor safety
+          PASS: try/finally block protects scissor state
+
+[Edge 12] render_widgets callback position
+          PASS: Correctly between render_nodes and render_tileManager
+
+[Edge 13] Syntax check all modified files
+          PASS: All 7 files compile without errors
+
+--- All Edge Cases Passed ---

@@ -1,0 +1,47 @@
+test_translation_all_four_events (tests.test_event_forwarding.TestCoordinateTranslation.test_translation_all_four_events)
+Verify translation works for all mouse event types. ... ok
+test_drag_blocked_when_menu_visible (tests.test_event_forwarding.TestCtrlModeRouting.test_drag_blocked_when_menu_visible)
+Drag should not forward to widget when menu is visible. ... ok
+test_press_routes_to_menu_when_visible (tests.test_event_forwarding.TestCtrlModeRouting.test_press_routes_to_menu_when_visible)
+Press should route to menu when visible. ... ok
+test_scroll_blocked_when_menu_visible (tests.test_event_forwarding.TestCtrlModeRouting.test_scroll_blocked_when_menu_visible)
+Scroll should not forward to widget when menu is visible. ... ok
+test_coordinate_translation_corner_cases (tests.test_event_forwarding.TestMouseEventForwarding.test_coordinate_translation_corner_cases)
+Test translation at widget corners. ... ok
+test_coordinate_translation_preserves_offset (tests.test_event_forwarding.TestMouseEventForwarding.test_coordinate_translation_preserves_offset)
+Widget should receive screen-to-local coordinate translation. ... ok
+test_drag_forwards_to_widget_inside (tests.test_event_forwarding.TestMouseEventForwarding.test_drag_forwards_to_widget_inside)
+Drag inside widget should forward to that widget. ... ok
+test_drag_no_forward_outside (tests.test_event_forwarding.TestMouseEventForwarding.test_drag_no_forward_outside)
+Drag outside all widgets should not forward. ... ok
+test_menu_hidden_allows_widget_events (tests.test_event_forwarding.TestMouseEventForwarding.test_menu_hidden_allows_widget_events)
+When menu is not visible, events go to widget. ... ok
+test_menu_visible_blocks_widget_events (tests.test_event_forwarding.TestMouseEventForwarding.test_menu_visible_blocks_widget_events)
+When menu is visible, events go to menu, not widget. ... ok
+test_press_forwards_to_correct_widget_when_multiple (tests.test_event_forwarding.TestMouseEventForwarding.test_press_forwards_to_correct_widget_when_multiple)
+Click should forward to the correct widget among multiple. ... ok
+test_press_forwards_to_widget_inside (tests.test_event_forwarding.TestMouseEventForwarding.test_press_forwards_to_widget_inside)
+Click inside widget A (at 0,0) should forward to widget_a. ... ok
+test_press_no_forward_outside_all_widgets (tests.test_event_forwarding.TestMouseEventForwarding.test_press_no_forward_outside_all_widgets)
+Click outside all widgets should not forward to any widget. ... ok
+test_press_on_widget_border (tests.test_event_forwarding.TestMouseEventForwarding.test_press_on_widget_border)
+Click on widget border should still forward to that widget. ... ok
+test_press_outside_bottom_boundary (tests.test_event_forwarding.TestMouseEventForwarding.test_press_outside_bottom_boundary)
+Click below widget's bottom edge should not forward. ... ok
+test_press_outside_right_boundary (tests.test_event_forwarding.TestMouseEventForwarding.test_press_outside_right_boundary)
+Click to the right of widget should not forward. ... ok
+test_rapid_clicks_route_correctly (tests.test_event_forwarding.TestMouseEventForwarding.test_rapid_clicks_route_correctly)
+Multiple rapid clicks should route to correct widgets each time. ... ok
+test_release_forwards_to_widget_inside (tests.test_event_forwarding.TestMouseEventForwarding.test_release_forwards_to_widget_inside)
+Release inside widget should forward to that widget. ... ok
+test_release_no_forward_outside (tests.test_event_forwarding.TestMouseEventForwarding.test_release_no_forward_outside)
+Release outside all widgets should not forward. ... ok
+test_scroll_forwards_to_widget_inside (tests.test_event_forwarding.TestMouseEventForwarding.test_scroll_forwards_to_widget_inside)
+Scroll inside widget should forward to that widget. ... ok
+test_scroll_no_forward_outside (tests.test_event_forwarding.TestMouseEventForwarding.test_scroll_no_forward_outside)
+Scroll outside all widgets should not forward. ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.111s
+
+OK

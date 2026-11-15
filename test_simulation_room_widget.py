@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """Test script for SimulationRoomWidget."""
 
 import moderngl
 import pyglet
 import numpy as np
 from vizcore.window.window import Window
-from vizcore.widget.simulation_room import SimulationRoomWidget
+from vizcore.components.visualization.simulation_room import SimulationRoomWidget
 
 width, height = 1024, 768
 window = pyglet.window.Window(width, height, "VizCore - Simulation Room", resizable=True)
@@ -35,8 +34,9 @@ print("  Select 'Simulation Room' from menu")
 print("=" * 60)
 
 try:
-    pyglet.app.run()
+  pyglet.app.run()
 except Exception as e:
-    print(f"Error: {e}")
-    import traceback
-    traceback.print_exc()
+  print(f"Error: {e}")
+  import traceback
+
+  traceback.print_exc()

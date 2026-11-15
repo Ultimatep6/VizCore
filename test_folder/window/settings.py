@@ -1,0 +1,54 @@
+import os
+import numpy as np
+
+ROOM_SIZE = 10.0
+MIN_SIZE = 1.0
+WALL_MARGIN = 0.2
+
+AXIS_RED = np.array([0.9, 0.2, 0.2], dtype=np.float32)
+AXIS_GREEN = np.array([0.2, 0.85, 0.2], dtype=np.float32)
+AXIS_BLUE = np.array([0.2, 0.4, 0.95], dtype=np.float32)
+INDICATOR_COLOR = np.array([1.0, 0.5, 0.15], dtype=np.float32)
+MESH_COLOR = np.array([0.3, 0.8, 0.9], dtype=np.float32)
+DRONE_COLOR = np.array([1.0, 0.8, 0.2], dtype=np.float32)
+
+CIRCLE_SEGMENTS = 32
+CIRCLE_RADIUS_FACTOR = 0.02
+LINE_RADIUS_FACTOR = 0.003
+AXIS_SCALE_FACTOR = 1.2
+AXIS_DIVISOR = 10.0
+
+INDICATOR_RADIUS = 0.2
+
+MOVING_AXIS_X_AMP = 3.0
+MOVING_AXIS_Y_AMP = 2.0
+MOVING_AXIS_Y_OFFSET = 1.0
+MOVING_AXIS_Y_FREQ = 0.7
+MOVING_AXIS_Z_AMP = 3.0
+MOVING_AXIS_ROT_SPEED = 1.2
+MESH_SCALE_FACTOR = 0.001
+
+MAX_BODIES = 16
+MAX_ARROWS = 3
+CYLINDER_SEGMENT = 24
+
+ARROW_SEGMENTS = 32
+SHAFT_RADIUS = 0.04
+SHAFT_HEIGHT = 0.6
+HEAD_RADIUS = 0.10
+HEAD_HEIGHT = 0.2
+
+BLIP_RADIUS = 0.15
+BLIP_COLOR = np.array([0.3, 0.8, 0.9], dtype=np.float32)
+MAX_BLIPS = 64
+
+FOG_DENSITY = 0.025
+GRID_LINE_ALPHA = 1.0
+GRID_ZONE_ALPHA = 0.9
+
+# Mouse Settings
+SCROLL_SENSITIVITY = 0.01
+
+SHADER_DIR = os.path.join(
+    "/home/matteobenk/myStuff/codingStuff/VizCore/test_folder/window", "shaders"
+)

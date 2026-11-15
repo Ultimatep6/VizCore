@@ -1,0 +1,39 @@
+test_init_creates_shader_program (tests.test_drawing_context.TestDrawingContextInit.test_init_creates_shader_program)
+DrawingContext.__init__() creates the UI shader program. ... ok
+test_init_creates_vaos (tests.test_drawing_context.TestDrawingContextInit.test_init_creates_vaos)
+DrawingContext.__init__() creates quad and outline VAOs. ... ok
+test_init_creates_vbos (tests.test_drawing_context.TestDrawingContextInit.test_init_creates_vbos)
+DrawingContext.__init__() creates quad and outline VBOs. ... ok
+test_init_only_once_despite_multiple_instances (tests.test_drawing_context.TestDrawingContextInit.test_init_only_once_despite_multiple_instances)
+_init_shared() runs only once (guarded by _initialized flag). ... ok
+test_outline_sets_all_required_uniforms (tests.test_drawing_context.TestDrawingContextOutlineUniforms.test_outline_sets_all_required_uniforms)
+outline() sets u_resolution, u_pos, u_size, u_color before rendering. ... ok
+test_multiple_instances_share_shader_program (tests.test_drawing_context.TestDrawingContextSharedResources.test_multiple_instances_share_shader_program)
+Multiple DrawingContext instances share the same shader program (class-level). ... ok
+test_multiple_instances_share_vaos (tests.test_drawing_context.TestDrawingContextSharedResources.test_multiple_instances_share_vaos)
+Multiple DrawingContext instances share the same VAOs. ... ok
+test_multiple_instances_share_vbos (tests.test_drawing_context.TestDrawingContextSharedResources.test_multiple_instances_share_vbos)
+Multiple DrawingContext instances share the same VBOs. ... ok
+test_consecutive_quad_calls_set_different_colors (tests.test_drawing_context.TestDrawingContextUniformIsolation.test_consecutive_quad_calls_set_different_colors)
+Each quad() call overwrites u_color with new values. ... ok
+test_consecutive_quad_calls_set_different_positions (tests.test_drawing_context.TestDrawingContextUniformIsolation.test_consecutive_quad_calls_set_different_positions)
+Each quad() call overwrites u_pos with new values. ... ok
+test_consecutive_quad_calls_set_different_sizes (tests.test_drawing_context.TestDrawingContextUniformIsolation.test_consecutive_quad_calls_set_different_sizes)
+Each quad() call overwrites u_size with new values. ... ok
+test_quad_sets_u_color_with_alpha (tests.test_drawing_context.TestDrawingContextUniformSetting.test_quad_sets_u_color_with_alpha)
+quad() sets u_color including alpha channel. ... ok
+test_quad_sets_u_pos_with_offset (tests.test_drawing_context.TestDrawingContextUniformSetting.test_quad_sets_u_pos_with_offset)
+quad() sets u_pos incorporating offset_x and offset_y. ... ok
+test_quad_sets_u_resolution (tests.test_drawing_context.TestDrawingContextUniformSetting.test_quad_sets_u_resolution)
+quad() sets u_resolution uniform to widget dimensions. ... ok
+test_quad_sets_u_size (tests.test_drawing_context.TestDrawingContextUniformSetting.test_quad_sets_u_size)
+quad() sets u_size to the rectangle dimensions. ... ok
+test_vao_identity_preserved_after_quad_calls (tests.test_drawing_context.TestDrawingContextVAOCaching.test_vao_identity_preserved_after_quad_calls)
+The same VAO object is used across multiple quad() calls. ... ok
+test_vaos_not_recreated_on_second_init (tests.test_drawing_context.TestDrawingContextVAOCaching.test_vaos_not_recreated_on_second_init)
+_init_shared() does not recreate VAOs when called again. ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.213s
+
+OK

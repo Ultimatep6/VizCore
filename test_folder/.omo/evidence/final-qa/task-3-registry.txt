@@ -1,0 +1,3 @@
+=== TASK 3: Verify WidgetRegistry works ===
+PASS: Registry maps Line Plot to LinePlot class
+PASS: list_names() returns: ['Line Plot']
