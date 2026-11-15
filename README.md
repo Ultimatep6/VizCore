@@ -53,7 +53,9 @@ python mainLoop.py
 
 Features: 3D world grid with pickable blip markers, a tiled widget dashboard (line plots, gauges, data trees), right-click context menus, and per-blip OBJ model loading/alignment via file dialog.
 
-Demo: [example_clip.mp4](example_clip.mp4)
+Demo:
+
+![Simulation room demo](example_clip.gif)
 
 ## Architecture
 
