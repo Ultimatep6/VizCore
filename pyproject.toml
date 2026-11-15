@@ -1,6 +1,19 @@
 [project]
 name = "vizcore"
-version = "0.0.1" # Add this line with your desired version
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+    "moderngl",
+    "moderngl-window",
+    "numpy",
+    "pillow",
+    "pyglet",
+    "pyglm",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["vizcore"]

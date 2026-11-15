@@ -1,5 +1,12 @@
 Metadata-Version: 2.4
 Name: vizcore
 Version: 0.0.1
+Requires-Python: >=3.12
 License-File: LICENSE
+Requires-Dist: moderngl
+Requires-Dist: moderngl-window
+Requires-Dist: numpy
+Requires-Dist: pillow
+Requires-Dist: pyglet
+Requires-Dist: pyglm
 Dynamic: license-file
