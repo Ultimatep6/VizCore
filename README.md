@@ -42,6 +42,19 @@ This opens a 1024×768 window showing a 3D coordinate frame (red=X, green=Y, blu
 
 See `simpleWindow3D.py` and `simulationRoom.py` in the project root for more examples.
 
+### Simulation Room (blips, tiles, model loading)
+
+Run the full simulation-room app:
+
+```bash
+cd test_folder
+python mainLoop.py
+```
+
+Features: 3D world grid with pickable blip markers, a tiled widget dashboard (line plots, gauges, data trees), right-click context menus, and per-blip OBJ model loading/alignment via file dialog.
+
+Demo: [example_clip.mp4](example_clip.mp4)
+
 ## Architecture
 
 ```
